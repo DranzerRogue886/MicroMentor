@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "MicroMentor",
+    "slug": "micro-mentor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "Micro-Mentor"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "micro_mentor.ME"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#ffffff"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "micro-mentor-1f44e"
+      },
+      "supabaseUrl": "https://svruxmlgshltgpgwcyos.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2cnV4bWxnc2hsdGdwZ3djeW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4OTYxMzAsImV4cCI6MjA2NjQ3MjEzMH0.wvLreCCP3os7Hah78NNu7oZAc418ViTLlSbnzpy87Ks"
+    }
+  }
+} 
