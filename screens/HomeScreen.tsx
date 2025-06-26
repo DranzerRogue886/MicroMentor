@@ -8,76 +8,35 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { signOut } from '../supabase/supabaseConfig';
-import { 
-  getUserHabits, 
-  addHabit, 
-  updateHabit, 
-  deleteHabit, 
-  checkInHabit,
-  subscribeToHabits,
-  Habit 
-} from '../supabase/supabaseService';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList, Habit, Achievement } from '../types';
+import { StorageService } from '../services/storage';
+import { NotificationService } from '../services/notifications';
+import { HabitUtils } from '../utils/habitUtils';
 import HabitCard from '../components/HabitCard';
+import AchievementModal from '../components/AchievementModal';
+
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 interface HomeScreenProps {
-  navigation: any;
-  route: {
-    params: {
-      isAdmin: boolean;
-    };
-  };
+  navigation: HomeScreenNavigationProp;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
-  const { isAdmin } = route.params;
+const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [achievement, setAchievement] = useState<Achievement | null>(null);
+  const [showAchievement, setShowAchievement] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) {
-      // For admin, use mock data
-      setHabits([
-        {
-          id: '1',
-          user_id: 'admin',
-          name: 'Drink Water',
-          icon: '💧',
-          description: 'Stay hydrated',
-          reminder_time: '09:00',
-          streak: 5,
-          longest_streak: 7,
-          history: { '2024-01-01': true, '2024-01-02': true },
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        {
-          id: '2',
-          user_id: 'admin',
-          name: 'Exercise',
-          icon: '🏃‍♂️',
-          description: 'Daily workout',
-          reminder_time: '18:00',
-          streak: 3,
-          longest_streak: 10,
-          history: { '2024-01-01': true },
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-        }
-      ]);
-      setLoading(false);
-    } else {
-      // For regular users, load from Supabase
-      loadHabits();
-    }
-  }, [isAdmin]);
+    loadHabits();
+    setupNotifications();
+  }, []);
 
-  const loadHabits = async (): Promise<void> => {
+  const loadHabits = async () => {
     try {
-      // For now, use a mock user ID - in real app, get from auth
-      const userHabits = await getUserHabits('mock-user-id');
-      setHabits(userHabits);
+      const loadedHabits = await StorageService.getHabits();
+      setHabits(loadedHabits);
     } catch (error) {
       console.error('Error loading habits:', error);
       Alert.alert('Error', 'Failed to load habits');
@@ -86,193 +45,145 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  const handleAddHabit = async (habitData: Partial<Habit>): Promise<void> => {
+  const setupNotifications = async () => {
     try {
-      if (isAdmin) {
-        // Mock habit for admin
-        const newHabit: Habit = {
-          id: Date.now().toString(),
-          user_id: 'admin',
-          name: habitData.name || '',
-          icon: habitData.icon || '📝',
-          description: habitData.description || '',
-          reminder_time: habitData.reminder_time || '',
-          streak: 0,
-          longest_streak: 0,
-          history: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setHabits([...habits, newHabit]);
-      } else {
-        // Real habit for Supabase users
-        const newHabit = await addHabit({
-          user_id: 'mock-user-id',
-          name: habitData.name || '',
-          icon: habitData.icon || '📝',
-          description: habitData.description || '',
-          reminder_time: habitData.reminder_time || '',
-          streak: 0,
-          longest_streak: 0,
-          history: {},
-        });
-        setHabits([...habits, newHabit]);
+      const hasPermission = await NotificationService.requestPermissions();
+      if (!hasPermission) {
+        console.log('Notification permissions not granted');
       }
-      navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to add habit');
+      console.error('Error setting up notifications:', error);
     }
   };
 
-  const handleEditHabit = async (habitData: Partial<Habit>): Promise<void> => {
+  const handleCheckIn = async (updatedHabit: Habit) => {
     try {
-      if (isAdmin) {
-        // Mock update for admin
-        const updatedHabits = habits.map(habit => 
-          habit.id === editingHabit!.id ? { ...habit, ...habitData } : habit
-        );
-        setHabits(updatedHabits);
-      } else {
-        // Real update for Supabase users
-        await updateHabit(editingHabit!.id, habitData);
-        await loadHabits();
-      }
-      setEditingHabit(null);
+      await StorageService.updateHabit(updatedHabit);
+      setHabits(prevHabits =>
+        prevHabits.map(habit =>
+          habit.id === updatedHabit.id ? updatedHabit : habit
+        )
+      );
     } catch (error) {
+      console.error('Error updating habit:', error);
       Alert.alert('Error', 'Failed to update habit');
     }
   };
 
-  const handleDeleteHabit = async (habitId: string): Promise<void> => {
-    Alert.alert(
-      'Delete Habit',
-      'Are you sure you want to delete this habit? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (isAdmin) {
-                // Mock delete for admin
-                setHabits(habits.filter(habit => habit.id !== habitId));
-              } else {
-                // Real delete for Supabase users
-                await deleteHabit(habitId);
-                await loadHabits();
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete habit');
-            }
-          },
-        },
-      ]
-    );
+  const handleEditHabit = (habit: Habit) => {
+    navigation.navigate('AddHabit', { habit });
   };
 
-  const handleCheckIn = async (habitId: string): Promise<void> => {
+  const handleDeleteHabit = async (habitId: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      if (isAdmin) {
-        // Mock check-in for admin
-        const updatedHabits = habits.map(habit => {
-          if (habit.id === habitId) {
-            const history = { ...habit.history, [today]: true };
-            const newStreak = habit.streak + 1;
-            const longestStreak = Math.max(habit.longest_streak, newStreak);
-            return { ...habit, history, streak: newStreak, longest_streak: longestStreak };
-          }
-          return habit;
-        });
-        setHabits(updatedHabits);
-      } else {
-        // Real check-in for Supabase users
-        await checkInHabit(habitId, today);
-        await loadHabits();
-      }
+      await StorageService.deleteHabit(habitId);
+      await NotificationService.cancelHabitReminder(habitId);
+      setHabits(prevHabits => prevHabits.filter(habit => habit.id !== habitId));
     } catch (error) {
-      Alert.alert('Error', 'Failed to check in habit');
+      console.error('Error deleting habit:', error);
+      Alert.alert('Error', 'Failed to delete habit');
     }
   };
 
-  const handleLogout = async (): Promise<void> => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          onPress: async () => {
-            try {
-              if (isAdmin) {
-                // Admin logout handled by parent component
-                navigation.navigate('Login');
-              } else {
-                await signOut();
-                navigation.navigate('Login');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
-            }
-          },
-        },
-      ]
-    );
+  const handleAchievement = (newAchievement: Achievement) => {
+    setAchievement(newAchievement);
+    setShowAchievement(true);
+  };
+
+  const handleCloseAchievement = () => {
+    setShowAchievement(false);
+    setAchievement(null);
+  };
+
+  const getTodayProgress = () => {
+    const completedToday = habits.filter(habit => HabitUtils.isCompletedToday(habit)).length;
+    return { completed: completedToday, total: habits.length };
+  };
+
+  const getTotalStreak = () => {
+    return habits.reduce((total, habit) => total + habit.streak, 0);
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading habits...</Text>
+        <Text style={styles.loadingText}>Loading your habits...</Text>
       </View>
     );
   }
 
+  const { completed, total } = getTodayProgress();
+  const totalStreak = getTotalStreak();
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>My Habits</Text>
-        {isAdmin && (
-          <View style={styles.adminBadge}>
-            <Text style={styles.adminText}>🔐 Admin</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>MicroHabit</Text>
+        <Text style={styles.subtitle}>Track your daily progress</Text>
       </View>
 
-      <ScrollView style={styles.habitsList}>
+      {/* Progress Summary */}
+      {habits.length > 0 && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressItem}>
+            <Text style={styles.progressNumber}>{completed}/{total}</Text>
+            <Text style={styles.progressLabel}>Today</Text>
+          </View>
+          <View style={styles.progressDivider} />
+          <View style={styles.progressItem}>
+            <Text style={styles.progressNumber}>{totalStreak}</Text>
+            <Text style={styles.progressLabel}>Total Streak</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Habits List */}
+      <ScrollView style={styles.habitsList} showsVerticalScrollIndicator={false}>
         {habits.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No habits yet</Text>
-            <Text style={styles.emptySubtitle}>Start building your daily routines</Text>
+            <Text style={styles.emptyText}>
+              Start building your daily routines by adding your first habit!
+            </Text>
+            <TouchableOpacity
+              style={styles.addFirstButton}
+              onPress={() => navigation.navigate('AddHabit', {})}
+            >
+              <Text style={styles.addFirstButtonText}>Add Your First Habit</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          habits.map((habit) => (
+          habits.map(habit => (
             <HabitCard
               key={habit.id}
               habit={habit}
               onCheckIn={handleCheckIn}
-              onEdit={() => setEditingHabit(habit)}
+              onEdit={handleEditHabit}
               onDelete={handleDeleteHabit}
+              onAchievement={handleAchievement}
             />
           ))
         )}
       </ScrollView>
 
-      {habits.length < 3 && (
+      {/* Add Habit Button */}
+      {habits.length > 0 && habits.length < 5 && (
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate('AddHabit', { onSave: handleAddHabit })}
+          onPress={() => navigation.navigate('AddHabit', {})}
         >
           <Text style={styles.addButtonText}>+ Add Habit</Text>
         </TouchableOpacity>
       )}
+
+      {/* Achievement Modal */}
+      <AchievementModal
+        achievement={achievement}
+        visible={showAchievement}
+        onClose={handleCloseAchievement}
+      />
     </View>
   );
 };
@@ -289,47 +200,61 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 16,
     fontSize: 16,
-    color: '#64748b',
+    color: '#6b7280',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
     paddingTop: 60,
+    paddingHorizontal: 20,
     paddingBottom: 20,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1f2937',
+    marginBottom: 4,
   },
-  adminBadge: {
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#3b82f6',
+  subtitle: {
+    fontSize: 16,
+    color: '#6b7280',
   },
-  adminText: {
-    fontSize: 12,
-    color: '#1e40af',
-    fontWeight: '600',
+  progressContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    margin: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  logoutButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  progressItem: {
+    flex: 1,
+    alignItems: 'center',
   },
-  logoutText: {
-    color: '#ef4444',
+  progressNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3b82f6',
+    marginBottom: 4,
+  },
+  progressLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    color: '#6b7280',
+  },
+  progressDivider: {
+    width: 1,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 20,
   },
   habitsList: {
     flex: 1,
@@ -342,15 +267,28 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 12,
   },
-  emptySubtitle: {
+  emptyText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: '#6b7280',
     textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  addFirstButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  addFirstButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   addButton: {
     backgroundColor: '#3b82f6',

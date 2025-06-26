@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,68 +10,140 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Habit } from '../supabase/supabaseService';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList, Habit, HabitFormData } from '../types';
+import { StorageService } from '../services/storage';
+import { NotificationService } from '../services/notifications';
+import { HabitUtils } from '../utils/habitUtils';
+
+type AddHabitScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddHabit'>;
+type AddHabitScreenRouteProp = RouteProp<RootStackParamList, 'AddHabit'>;
 
 interface AddHabitScreenProps {
-  navigation: any;
-  route: {
-    params: {
-      onSave: (habitData: Partial<Habit>) => Promise<void>;
-    };
-  };
+  navigation: AddHabitScreenNavigationProp;
+  route: AddHabitScreenRouteProp;
 }
 
+const HABIT_ICONS = [
+  '💧', '🏃‍♂️', '📚', '🧘‍♀️', '🥗', '💤', '🏋️‍♂️', '🎯',
+  '🌱', '📝', '🎨', '🎵', '🧠', '💪', '🌟', '🔥',
+  '🧹', '🚰', '🥤', '🍎', '🚶‍♀️', '🧘‍♂️', '🎪', '🌈'
+];
+
 const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) => {
-  const { onSave } = route.params;
-  const [name, setName] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [icon, setIcon] = useState<string>('📝');
-  const [reminderTime, setReminderTime] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const { habit } = route.params;
+  const isEditing = !!habit;
 
-  const habitIcons = [
-    '💧', '🏃‍♂️', '📚', '🧘‍♀️', '🥗', '💤', '🏋️‍♂️', '🎯',
-    '🌱', '📝', '🎨', '🎵', '🧠', '💪', '🌟', '🔥'
-  ];
+  const [formData, setFormData] = useState<HabitFormData>({
+    name: '',
+    icon: '💧',
+    reminderTime: '',
+  });
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = async (): Promise<void> => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a habit name');
+  useEffect(() => {
+    if (habit) {
+      setFormData({
+        name: habit.name,
+        icon: habit.icon,
+        reminderTime: habit.reminderTime,
+      });
+    }
+  }, [habit]);
+
+  const handleSave = async () => {
+    // Validate form data
+    const nameValidation = HabitUtils.validateHabitName(formData.name);
+    if (!nameValidation.isValid) {
+      Alert.alert('Error', nameValidation.error);
+      return;
+    }
+
+    const timeValidation = HabitUtils.validateReminderTime(formData.reminderTime);
+    if (!timeValidation.isValid) {
+      Alert.alert('Error', timeValidation.error);
       return;
     }
 
     setLoading(true);
+
     try {
-      await onSave({
-        name: name.trim(),
-        description: description.trim(),
-        icon,
-        reminder_time: reminderTime,
-      });
+      if (isEditing && habit) {
+        // Update existing habit
+        const updatedHabit: Habit = {
+          ...habit,
+          name: formData.name.trim(),
+          icon: formData.icon,
+          reminderTime: formData.reminderTime,
+          updatedAt: new Date().toISOString(),
+        };
+
+        await StorageService.updateHabit(updatedHabit);
+        
+        // Update notification
+        if (formData.reminderTime) {
+          await NotificationService.cancelHabitReminder(habit.id);
+          await NotificationService.scheduleHabitReminder(updatedHabit);
+        } else {
+          await NotificationService.cancelHabitReminder(habit.id);
+        }
+
+        Alert.alert('Success', 'Habit updated successfully!');
+      } else {
+        // Create new habit
+        const newHabit: Habit = {
+          id: HabitUtils.generateId(),
+          name: formData.name.trim(),
+          icon: formData.icon,
+          reminderTime: formData.reminderTime,
+          streak: 0,
+          longestStreak: 0,
+          history: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await StorageService.addHabit(newHabit);
+
+        // Schedule notification if reminder time is set
+        if (formData.reminderTime) {
+          await NotificationService.scheduleHabitReminder(newHabit);
+        }
+
+        Alert.alert('Success', 'Habit created successfully!');
+      }
+
+      navigation.goBack();
     } catch (error) {
+      console.error('Error saving habit:', error);
       Alert.alert('Error', 'Failed to save habit');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancel = (): void => {
-    navigation.goBack();
+  const formatTime = (time: string): string => {
+    if (!time) return 'Set reminder time';
+    return HabitUtils.formatTime(time);
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scrollView}>
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Add New Habit</Text>
-          <TouchableOpacity 
-            onPress={handleSave} 
+          <Text style={styles.title}>
+            {isEditing ? 'Edit Habit' : 'Add New Habit'}
+          </Text>
+          <TouchableOpacity
+            onPress={handleSave}
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
             disabled={loading}
           >
@@ -81,61 +153,79 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
           </TouchableOpacity>
         </View>
 
+        {/* Form */}
         <View style={styles.form}>
+          {/* Habit Name */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Habit Name</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g., Drink Water, Exercise, Read"
-              value={name}
-              onChangeText={setName}
+              value={formData.name}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
               maxLength={50}
+              autoFocus={!isEditing}
             />
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Describe your habit..."
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-              maxLength={200}
-            />
-          </View>
-
+          {/* Icon Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Choose an Icon</Text>
             <View style={styles.iconGrid}>
-              {habitIcons.map((iconOption) => (
+              {HABIT_ICONS.map((icon) => (
                 <TouchableOpacity
-                  key={iconOption}
+                  key={icon}
                   style={[
                     styles.iconOption,
-                    icon === iconOption && styles.iconOptionSelected
+                    formData.icon === icon && styles.selectedIcon,
                   ]}
-                  onPress={() => setIcon(iconOption)}
+                  onPress={() => setFormData(prev => ({ ...prev, icon }))}
                 >
-                  <Text style={styles.iconText}>{iconOption}</Text>
+                  <Text style={styles.iconText}>{icon}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
+          {/* Reminder Time */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Reminder Time (Optional)</Text>
+            <Text style={styles.sectionTitle}>Daily Reminder (Optional)</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., 09:00, 18:30"
-              value={reminderTime}
-              onChangeText={setReminderTime}
+              placeholder="HH:MM (e.g., 09:00, 18:30)"
+              value={formData.reminderTime}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, reminderTime: text }))}
               keyboardType="numeric"
             />
             <Text style={styles.hintText}>
-              Use 24-hour format (HH:MM)
+              Use 24-hour format (HH:MM) or leave empty for no reminder
             </Text>
+            {formData.reminderTime && (
+              <TouchableOpacity
+                style={styles.clearTimeButton}
+                onPress={() => setFormData(prev => ({ ...prev, reminderTime: '' }))}
+              >
+                <Text style={styles.clearTimeText}>Clear reminder</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Preview */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preview</Text>
+            <View style={styles.previewCard}>
+              <View style={styles.previewHeader}>
+                <Text style={styles.previewIcon}>{formData.icon}</Text>
+                <Text style={styles.previewName}>
+                  {formData.name || 'Your Habit Name'}
+                </Text>
+              </View>
+              {formData.reminderTime && (
+                <Text style={styles.previewReminder}>
+                  Reminder: {formatTime(formData.reminderTime)}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -210,10 +300,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -230,7 +316,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e5e7eb',
   },
-  iconOptionSelected: {
+  selectedIcon: {
     borderColor: '#3b82f6',
     backgroundColor: '#eff6ff',
   },
@@ -241,6 +327,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 8,
+  },
+  clearTimeButton: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  clearTimeText: {
+    color: '#ef4444',
+    fontSize: 14,
+  },
+  previewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  previewIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  previewName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  previewReminder: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });
 

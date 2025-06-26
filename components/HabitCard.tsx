@@ -5,147 +5,162 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Modal,
+  Animated,
 } from 'react-native';
-import { Habit } from '../supabase/supabaseService';
+import { Habit } from '../types';
+import { HabitUtils } from '../utils/habitUtils';
+import { AchievementService } from '../services/achievements';
 
 interface HabitCardProps {
   habit: Habit;
-  onCheckIn: (habitId: string) => Promise<void>;
+  onCheckIn: (habit: Habit) => void;
   onEdit: (habit: Habit) => void;
-  onDelete: (habitId: string) => Promise<void>;
+  onDelete: (habitId: string) => void;
+  onAchievement: (achievement: any) => void;
 }
 
-const HabitCard: React.FC<HabitCardProps> = ({ 
-  habit, 
-  onCheckIn, 
-  onEdit, 
-  onDelete 
+const HabitCard: React.FC<HabitCardProps> = ({
+  habit,
+  onCheckIn,
+  onEdit,
+  onDelete,
+  onAchievement,
 }) => {
-  const [showOptions, setShowOptions] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [scaleValue] = useState(new Animated.Value(1));
+  const [loading, setLoading] = useState(false);
+  
+  const isCompletedToday = HabitUtils.isCompletedToday(habit);
+  const history = HabitUtils.getHistoryForDays(habit, 7);
+  const completionRate = HabitUtils.getCompletionRate(habit, 7);
 
-  const today = new Date().toISOString().split('T')[0];
-  const isCompletedToday = habit.history && habit.history[today];
-
-  const handleCheckIn = async (): Promise<void> => {
+  const handleCheckIn = async () => {
     if (isCompletedToday) {
       Alert.alert('Already Completed', 'You\'ve already completed this habit today!');
       return;
     }
 
     setLoading(true);
-    try {
-      await onCheckIn(habit.id);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to check in habit');
-    } finally {
-      setLoading(false);
+    
+    // Animate the button
+    Animated.sequence([
+      Animated.timing(scaleValue, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Check for achievements
+    const oldStreak = habit.streak;
+    const updatedHabit = HabitUtils.checkInHabit(habit);
+    const newAchievement = AchievementService.checkForNewAchievement(oldStreak, updatedHabit.streak);
+
+    onCheckIn(updatedHabit);
+
+    if (newAchievement) {
+      setTimeout(() => {
+        onAchievement(newAchievement);
+      }, 500);
     }
+
+    setLoading(false);
   };
 
-  const handleEdit = (): void => {
-    setShowOptions(false);
-    onEdit(habit);
-  };
-
-  const handleDelete = async (): Promise<void> => {
-    setShowOptions(false);
-    await onDelete(habit.id);
-  };
-
-  const getStreakEmoji = (streak: number): string => {
-    if (streak >= 7) return '🔥';
-    if (streak >= 3) return '💪';
-    if (streak >= 1) return '⭐';
-    return '🌱';
+  const handleLongPress = () => {
+    Alert.alert(
+      'Habit Options',
+      'What would you like to do?',
+      [
+        { text: 'Edit', onPress: () => onEdit(habit) },
+        { 
+          text: 'Delete', 
+          onPress: () => {
+            Alert.alert(
+              'Delete Habit',
+              'Are you sure you want to delete this habit? This action cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => onDelete(habit.id) },
+              ]
+            );
+          },
+          style: 'destructive' 
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
-    <>
-      <View style={styles.card}>
-        <View style={styles.header}>
-          <View style={styles.habitInfo}>
-            <Text style={styles.icon}>{habit.icon}</Text>
-            <View style={styles.textContainer}>
-              <Text style={styles.name}>{habit.name}</Text>
-              {habit.description && (
-                <Text style={styles.description}>{habit.description}</Text>
-              )}
-            </View>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.optionsButton}
-            onPress={() => setShowOptions(true)}
-          >
-            <Text style={styles.optionsText}>⋯</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Current Streak</Text>
-            <View style={styles.streakContainer}>
-              <Text style={styles.streakEmoji}>{getStreakEmoji(habit.streak)}</Text>
-              <Text style={styles.streakText}>{habit.streak} days</Text>
-            </View>
-          </View>
-          
-          <View style={styles.stat}>
-            <Text style={styles.statLabel}>Best Streak</Text>
-            <Text style={styles.statValue}>{habit.longest_streak} days</Text>
+    <Animated.View style={[styles.card, { transform: [{ scale: scaleValue }] }]}>
+      <TouchableOpacity onLongPress={handleLongPress} style={styles.header}>
+        <View style={styles.habitInfo}>
+          <Text style={styles.icon}>{habit.icon}</Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.name}>{habit.name}</Text>
+            {habit.reminderTime && (
+              <Text style={styles.reminderTime}>
+                Reminder: {HabitUtils.formatTime(habit.reminderTime)}
+              </Text>
+            )}
           </View>
         </View>
-
-        <TouchableOpacity
-          style={[
-            styles.checkInButton,
-            isCompletedToday && styles.checkInButtonCompleted,
-            loading && styles.checkInButtonDisabled
-          ]}
-          onPress={handleCheckIn}
-          disabled={loading || isCompletedToday}
-        >
-          <Text style={[
-            styles.checkInText,
-            isCompletedToday && styles.checkInTextCompleted
-          ]}>
-            {loading ? 'Checking...' : 
-             isCompletedToday ? '✓ Completed Today' : 'Check In'}
+        
+        <View style={styles.streakContainer}>
+          <Text style={styles.streakEmoji}>
+            {HabitUtils.getStreakEmoji(habit.streak)}
           </Text>
-        </TouchableOpacity>
+          <Text style={styles.streakText}>{habit.streak}</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* History Bar */}
+      <View style={styles.historyContainer}>
+        <Text style={styles.historyLabel}>Last 7 days</Text>
+        <View style={styles.historyBar}>
+          {history.map((completed, index) => (
+            <View
+              key={index}
+              style={[
+                styles.historyDot,
+                completed ? styles.completedDot : styles.missedDot,
+              ]}
+            />
+          ))}
+        </View>
+        <Text style={styles.completionRate}>{completionRate}%</Text>
       </View>
 
-      <Modal
-        visible={showOptions}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowOptions(false)}
+      {/* Check-in Button */}
+      <TouchableOpacity
+        style={[
+          styles.checkInButton,
+          isCompletedToday && styles.completedButton,
+          loading && styles.loadingButton,
+        ]}
+        onPress={handleCheckIn}
+        disabled={loading}
+        activeOpacity={0.8}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowOptions(false)}
-        >
-          <View style={styles.optionsModal}>
-            <TouchableOpacity
-              style={styles.optionButton}
-              onPress={handleEdit}
-            >
-              <Text style={styles.optionText}>✏️ Edit Habit</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.optionButton, styles.deleteOption]}
-              onPress={handleDelete}
-            >
-              <Text style={styles.deleteOptionText}>🗑️ Delete Habit</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </>
+        <Text style={[
+          styles.checkInText,
+          isCompletedToday && styles.completedText,
+        ]}>
+          {loading ? 'Checking...' : 
+           isCompletedToday ? '✓ Completed Today' : '✔ I Did It!'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Streak Message */}
+      <Text style={styles.streakMessage}>
+        {HabitUtils.getStreakMessage(habit.streak)}
+      </Text>
+    </Animated.View>
   );
 };
 
@@ -167,7 +182,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
   },
   habitInfo: {
@@ -188,61 +203,62 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 4,
   },
-  description: {
+  reminderTime: {
     fontSize: 14,
     color: '#6b7280',
-    lineHeight: 20,
-  },
-  optionsButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  optionsText: {
-    fontSize: 20,
-    color: '#6b7280',
-    fontWeight: 'bold',
-  },
-  stats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 4,
   },
   streakContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   streakEmoji: {
-    fontSize: 16,
-    marginRight: 4,
+    fontSize: 24,
+    marginBottom: 4,
   },
   streakText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#059669',
   },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+  historyContainer: {
+    marginBottom: 16,
+  },
+  historyLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 8,
+  },
+  historyBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  historyDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  completedDot: {
+    backgroundColor: '#10b981',
+  },
+  missedDot: {
+    backgroundColor: '#e5e7eb',
+  },
+  completionRate: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
   },
   checkInButton: {
     backgroundColor: '#3b82f6',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
+    marginBottom: 8,
   },
-  checkInButtonCompleted: {
+  completedButton: {
     backgroundColor: '#10b981',
   },
-  checkInButtonDisabled: {
+  loadingButton: {
     backgroundColor: '#9ca3af',
   },
   checkInText: {
@@ -250,45 +266,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  checkInTextCompleted: {
+  completedText: {
     color: '#ffffff',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  optionsModal: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 8,
-    marginHorizontal: 40,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  optionButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#374151',
-  },
-  deleteOption: {
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  deleteOptionText: {
-    fontSize: 16,
-    color: '#ef4444',
+  streakMessage: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 
