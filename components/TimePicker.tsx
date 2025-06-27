@@ -23,14 +23,25 @@ const TimePicker: React.FC<TimePickerProps> = ({
   onTimeChange,
   placeholder = 'Set time',
 }) => {
-  const [selectedHour, setSelectedHour] = useState(9);
-  const [selectedMinute, setSelectedMinute] = useState(0);
+  // Initialize state from value prop or use empty state
+  const getInitialTime = () => {
+    if (value) {
+      const [hour, minute] = value.split(':').map(Number);
+      if (!isNaN(hour) && !isNaN(minute)) {
+        return { hour, minute };
+      }
+    }
+    return { hour: 0, minute: 0 }; // Default to 00:00 instead of 09:00
+  };
+
+  const [selectedHour, setSelectedHour] = useState(getInitialTime().hour);
+  const [selectedMinute, setSelectedMinute] = useState(getInitialTime().minute);
   const [showPicker, setShowPicker] = useState(false);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
-  // Parse initial value
+  // Parse initial value and update state when value prop changes
   useEffect(() => {
     if (value) {
       const [hour, minute] = value.split(':').map(Number);
@@ -38,6 +49,10 @@ const TimePicker: React.FC<TimePickerProps> = ({
         setSelectedHour(hour);
         setSelectedMinute(minute);
       }
+    } else {
+      // Reset to default when value is cleared
+      setSelectedHour(0);
+      setSelectedMinute(0);
     }
   }, [value]);
 
@@ -57,6 +72,13 @@ const TimePicker: React.FC<TimePickerProps> = ({
     triggerHaptic();
     const timeString = `${selectedHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     onTimeChange(timeString);
+  };
+
+  const handleDone = () => {
+    // Save the current selected time when Done is pressed
+    const timeString = `${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
+    onTimeChange(timeString);
+    setShowPicker(false);
   };
 
   const formatDisplayTime = () => {
@@ -88,7 +110,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
               <Text style={styles.pickerTitle}>Set Reminder Time</Text>
               <TouchableOpacity
                 style={styles.doneButton}
-                onPress={() => setShowPicker(false)}
+                onPress={handleDone}
               >
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
