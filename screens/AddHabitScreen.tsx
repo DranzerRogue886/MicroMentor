@@ -67,6 +67,13 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
       return;
     }
 
+    // Debug: Log the form data being saved
+    console.log('Saving habit with data:', {
+      name: formData.name,
+      icon: formData.icon,
+      reminderTime: formData.reminderTime,
+    });
+
     setLoading(true);
 
     try {
@@ -216,9 +223,17 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
           <Text style={styles.sectionTitle}>Daily Reminder (Optional)</Text>
           <TimePicker
             value={formData.reminderTime}
-            onTimeChange={(time) => setFormData(prev => ({ ...prev, reminderTime: time }))}
+            onTimeChange={(time) => {
+              console.log('TimePicker onTimeChange called with:', time);
+              setFormData(prev => ({ ...prev, reminderTime: time }));
+            }}
             placeholder="Set reminder time"
           />
+          {formData.reminderTime && (
+            <Text style={styles.timeSavedText}>
+              ✅ Time set: {formatTime(formData.reminderTime)}
+            </Text>
+          )}
           <Text style={styles.hintText}>
             Use 24-hour format (HH:MM) or leave empty for no reminder
           </Text>
@@ -355,6 +370,11 @@ const styles = StyleSheet.create({
   previewReminder: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  timeSavedText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    marginTop: 8,
   },
 });
 
