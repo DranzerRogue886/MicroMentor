@@ -5,8 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface TimePickerProps {
   value: string;
@@ -64,7 +68,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.timeButton}
-        onPress={() => setShowPicker(!showPicker)}
+        onPress={() => setShowPicker(true)}
       >
         <Text style={[styles.timeButtonText, !value && styles.placeholderText]}>
           {formatDisplayTime()}
@@ -72,101 +76,108 @@ const TimePicker: React.FC<TimePickerProps> = ({
         <Text style={styles.timeButtonIcon}>⏰</Text>
       </TouchableOpacity>
 
-      {showPicker && (
-        <View style={styles.pickerContainer}>
-          <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>Set Reminder Time</Text>
+      <Modal
+        visible={showPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Set Reminder Time</Text>
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowPicker(false)}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pickerContent}>
+              <View style={styles.pickerColumn}>
+                <Text style={styles.pickerLabel}>Hour</Text>
+                <View style={styles.pickerWrapper}>
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.pickerScrollContent}
+                    snapToInterval={50}
+                    decelerationRate="fast"
+                    bounces={false}
+                    scrollEventThrottle={16}
+                  >
+                    {hours.map((hour) => (
+                      <TouchableOpacity
+                        key={hour}
+                        style={[
+                          styles.pickerItem,
+                          selectedHour === hour && styles.selectedItem,
+                        ]}
+                        onPress={() => handleHourSelect(hour)}
+                      >
+                        <Text style={[
+                          styles.pickerItemText,
+                          selectedHour === hour && styles.selectedItemText,
+                        ]}>
+                          {hour.toString().padStart(2, '0')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <View style={styles.pickerSelection} pointerEvents="none" />
+                </View>
+              </View>
+
+              <View style={styles.pickerSeparator}>
+                <Text style={styles.pickerSeparatorText}>:</Text>
+              </View>
+
+              <View style={styles.pickerColumn}>
+                <Text style={styles.pickerLabel}>Minute</Text>
+                <View style={styles.pickerWrapper}>
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.pickerScrollContent}
+                    snapToInterval={50}
+                    decelerationRate="fast"
+                    bounces={false}
+                    scrollEventThrottle={16}
+                  >
+                    {minutes.map((minute) => (
+                      <TouchableOpacity
+                        key={minute}
+                        style={[
+                          styles.pickerItem,
+                          selectedMinute === minute && styles.selectedItem,
+                        ]}
+                        onPress={() => handleMinuteSelect(minute)}
+                      >
+                        <Text style={[
+                          styles.pickerItemText,
+                          selectedMinute === minute && styles.selectedItemText,
+                        ]}>
+                          {minute.toString().padStart(2, '0')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <View style={styles.pickerSelection} pointerEvents="none" />
+                </View>
+              </View>
+            </View>
+
             <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => setShowPicker(false)}
+              style={styles.clearButton}
+              onPress={() => {
+                onTimeChange('');
+                setShowPicker(false);
+              }}
             >
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Text style={styles.clearButtonText}>Clear Reminder</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.pickerContent}>
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>Hour</Text>
-              <View style={styles.pickerWrapper}>
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.pickerScrollContent}
-                  snapToInterval={50}
-                  decelerationRate="fast"
-                  bounces={false}
-                  scrollEventThrottle={16}
-                >
-                  {hours.map((hour) => (
-                    <TouchableOpacity
-                      key={hour}
-                      style={[
-                        styles.pickerItem,
-                        selectedHour === hour && styles.selectedItem,
-                      ]}
-                      onPress={() => handleHourSelect(hour)}
-                    >
-                      <Text style={[
-                        styles.pickerItemText,
-                        selectedHour === hour && styles.selectedItemText,
-                      ]}>
-                        {hour.toString().padStart(2, '0')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <View style={styles.pickerSelection} pointerEvents="none" />
-              </View>
-            </View>
-
-            <View style={styles.pickerSeparator}>
-              <Text style={styles.pickerSeparatorText}>:</Text>
-            </View>
-
-            <View style={styles.pickerColumn}>
-              <Text style={styles.pickerLabel}>Minute</Text>
-              <View style={styles.pickerWrapper}>
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.pickerScrollContent}
-                  snapToInterval={50}
-                  decelerationRate="fast"
-                  bounces={false}
-                  scrollEventThrottle={16}
-                >
-                  {minutes.map((minute) => (
-                    <TouchableOpacity
-                      key={minute}
-                      style={[
-                        styles.pickerItem,
-                        selectedMinute === minute && styles.selectedItem,
-                      ]}
-                      onPress={() => handleMinuteSelect(minute)}
-                    >
-                      <Text style={[
-                        styles.pickerItemText,
-                        selectedMinute === minute && styles.selectedItemText,
-                      ]}>
-                        {minute.toString().padStart(2, '0')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <View style={styles.pickerSelection} pointerEvents="none" />
-              </View>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => {
-              onTimeChange('');
-              setShowPicker(false);
-            }}
-          >
-            <Text style={styles.clearButtonText}>Clear Reminder</Text>
-          </TouchableOpacity>
         </View>
-      )}
+      </Modal>
     </View>
   );
 };
@@ -196,33 +207,36 @@ const styles = StyleSheet.create({
   timeButtonIcon: {
     fontSize: 18,
   },
-  pickerContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    marginTop: 8,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
+    margin: 20,
+    width: screenWidth - 40,
+    maxWidth: 400,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 10,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    zIndex: 1000,
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   pickerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#1f2937',
   },
@@ -241,7 +255,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   pickerColumn: {
     alignItems: 'center',
