@@ -166,6 +166,14 @@ const TimePicker: React.FC<TimePickerProps> = ({
               </View>
             </View>
 
+            {/* Current Selected Time Display */}
+            <View style={styles.currentTimeDisplay}>
+              <Text style={styles.currentTimeLabel}>Selected Time:</Text>
+              <Text style={styles.currentTimeText}>
+                {selectedHour.toString().padStart(2, '0')}:{selectedMinute.toString().padStart(2, '0')}
+              </Text>
+            </View>
+
             <TouchableOpacity
               style={styles.clearButton}
               onPress={() => {
@@ -280,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedItem: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
   pickerItemText: {
     fontSize: 20,
@@ -289,6 +297,7 @@ const styles = StyleSheet.create({
   },
   selectedItemText: {
     color: '#3b82f6',
+    fontWeight: '700',
   },
   pickerSelection: {
     position: 'absolute',
@@ -296,10 +305,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 50,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#3b82f6',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   pickerSeparator: {
     marginHorizontal: 20,
@@ -320,6 +329,22 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 14,
     fontWeight: '500',
+  },
+  currentTimeDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  currentTimeLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginRight: 8,
+  },
+  currentTimeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
   },
 });
 
