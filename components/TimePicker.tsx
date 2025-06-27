@@ -93,6 +93,8 @@ const TimePicker: React.FC<TimePickerProps> = ({
                   contentContainerStyle={styles.pickerScrollContent}
                   snapToInterval={50}
                   decelerationRate="fast"
+                  bounces={false}
+                  scrollEventThrottle={16}
                 >
                   {hours.map((hour) => (
                     <TouchableOpacity
@@ -128,6 +130,8 @@ const TimePicker: React.FC<TimePickerProps> = ({
                   contentContainerStyle={styles.pickerScrollContent}
                   snapToInterval={50}
                   decelerationRate="fast"
+                  bounces={false}
+                  scrollEventThrottle={16}
                 >
                   {minutes.map((minute) => (
                     <TouchableOpacity
@@ -249,11 +253,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pickerWrapper: {
-    height: 250,
+    height: 300,
     position: 'relative',
   },
   pickerScrollContent: {
-    paddingVertical: 100,
+    paddingVertical: 125,
   },
   pickerItem: {
     height: 50,
@@ -274,7 +278,7 @@ const styles = StyleSheet.create({
   },
   pickerSelection: {
     position: 'absolute',
-    top: 100,
+    top: 125,
     left: 0,
     right: 0,
     height: 50,
@@ -287,7 +291,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 250,
+    height: 300,
   },
   pickerSeparatorText: {
     fontSize: 24,

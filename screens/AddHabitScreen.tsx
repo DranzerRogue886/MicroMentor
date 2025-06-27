@@ -134,92 +134,96 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView style={styles.scrollView}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>
-            {isEditing ? 'Edit Habit' : 'Add New Habit'}
+      {/* Header - Fixed at top */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>
+          {isEditing ? 'Edit Habit' : 'Add New Habit'}
+        </Text>
+        <TouchableOpacity
+          onPress={handleSave}
+          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          disabled={loading}
+        >
+          <Text style={styles.saveText}>
+            {loading ? 'Saving...' : 'Save'}
           </Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-            disabled={loading}
-          >
-            <Text style={styles.saveText}>
-              {loading ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
+
+      {/* Scrollable Content */}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Habit Name */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Habit Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Drink Water, Exercise, Read"
+            value={formData.name}
+            onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+            maxLength={50}
+            autoFocus={!isEditing}
+          />
         </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          {/* Habit Name */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Habit Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Drink Water, Exercise, Read"
-              value={formData.name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-              maxLength={50}
-              autoFocus={!isEditing}
-            />
+        {/* Icon Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Choose an Icon</Text>
+          <View style={styles.iconGrid}>
+            {HABIT_ICONS.map((icon) => (
+              <TouchableOpacity
+                key={icon}
+                style={[
+                  styles.iconOption,
+                  formData.icon === icon && styles.selectedIcon,
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, icon }))}
+              >
+                <Text style={styles.iconText}>{icon}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
 
-          {/* Icon Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Choose an Icon</Text>
-            <View style={styles.iconGrid}>
-              {HABIT_ICONS.map((icon) => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[
-                    styles.iconOption,
-                    formData.icon === icon && styles.selectedIcon,
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, icon }))}
-                >
-                  <Text style={styles.iconText}>{icon}</Text>
-                </TouchableOpacity>
-              ))}
+        {/* Preview */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preview</Text>
+          <View style={styles.previewCard}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewIcon}>{formData.icon}</Text>
+              <Text style={styles.previewName}>
+                {formData.name || 'Your Habit Name'}
+              </Text>
             </View>
-          </View>
-
-          {/* Reminder Time */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Daily Reminder (Optional)</Text>
-            <TimePicker
-              value={formData.reminderTime}
-              onTimeChange={(time) => setFormData(prev => ({ ...prev, reminderTime: time }))}
-              placeholder="Set reminder time"
-            />
-            <Text style={styles.hintText}>
-              Use 24-hour format (HH:MM) or leave empty for no reminder
-            </Text>
-          </View>
-
-          {/* Preview */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Preview</Text>
-            <View style={styles.previewCard}>
-              <View style={styles.previewHeader}>
-                <Text style={styles.previewIcon}>{formData.icon}</Text>
-                <Text style={styles.previewName}>
-                  {formData.name || 'Your Habit Name'}
-                </Text>
-              </View>
-              {formData.reminderTime && (
-                <Text style={styles.previewReminder}>
-                  Reminder: {formatTime(formData.reminderTime)}
-                </Text>
-              )}
-            </View>
+            {formData.reminderTime && (
+              <Text style={styles.previewReminder}>
+                Reminder: {formatTime(formData.reminderTime)}
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
+
+      {/* Time Picker - Fixed at bottom with proper spacing */}
+      <View style={styles.timePickerContainer}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Daily Reminder (Optional)</Text>
+          <TimePicker
+            value={formData.reminderTime}
+            onTimeChange={(time) => setFormData(prev => ({ ...prev, reminderTime: time }))}
+            placeholder="Set reminder time"
+          />
+          <Text style={styles.hintText}>
+            Use 24-hour format (HH:MM) or leave empty for no reminder
+          </Text>
+        </View>
+      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -231,6 +235,10 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
@@ -269,9 +277,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  form: {
-    padding: 20,
   },
   section: {
     marginBottom: 24,
@@ -318,6 +323,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 8,
+  },
+  timePickerContainer: {
+    padding: 20,
+    paddingTop: 0,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
   previewCard: {
     backgroundColor: '#ffffff',
