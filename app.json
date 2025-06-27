@@ -25,14 +25,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "color": "#ffffff"
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "micro-mentor-1f44e"

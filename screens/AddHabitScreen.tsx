@@ -16,6 +16,7 @@ import { RootStackParamList, Habit, HabitFormData } from '../types';
 import { StorageService } from '../services/storage';
 import { NotificationService } from '../services/notifications';
 import { HabitUtils } from '../utils/habitUtils';
+import TimePicker from '../components/TimePicker';
 
 type AddHabitScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddHabit'>;
 type AddHabitScreenRouteProp = RouteProp<RootStackParamList, 'AddHabit'>;
@@ -190,24 +191,14 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
           {/* Reminder Time */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Daily Reminder (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="HH:MM (e.g., 09:00, 18:30)"
+            <TimePicker
               value={formData.reminderTime}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, reminderTime: text }))}
-              keyboardType="numeric"
+              onTimeChange={(time) => setFormData(prev => ({ ...prev, reminderTime: time }))}
+              placeholder="Set reminder time"
             />
             <Text style={styles.hintText}>
               Use 24-hour format (HH:MM) or leave empty for no reminder
             </Text>
-            {formData.reminderTime && (
-              <TouchableOpacity
-                style={styles.clearTimeButton}
-                onPress={() => setFormData(prev => ({ ...prev, reminderTime: '' }))}
-              >
-                <Text style={styles.clearTimeText}>Clear reminder</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Preview */}
@@ -327,14 +318,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 8,
-  },
-  clearTimeButton: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  clearTimeText: {
-    color: '#ef4444',
-    fontSize: 14,
   },
   previewCard: {
     backgroundColor: '#ffffff',
