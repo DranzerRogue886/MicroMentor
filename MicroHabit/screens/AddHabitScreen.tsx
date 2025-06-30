@@ -5,63 +5,44 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList, Habit, HabitFormData } from '../types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Habit } from '../types';
 import { StorageService } from '../services/storage';
-import { HabitUtils } from '../utils/habitUtils';
+import { spacing, fontSizes, borderRadius, responsiveSize } from '../utils/responsive';
 
-type AddHabitScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddHabit'>;
-type AddHabitScreenRouteProp = RouteProp<RootStackParamList, 'AddHabit'>;
-
-interface AddHabitScreenProps {
-  navigation: AddHabitScreenNavigationProp;
-  route: AddHabitScreenRouteProp;
-}
-
-const HABIT_ICONS = [
-  '💧', '🏃‍♂️', '📚', '🧘‍♀️', '🥗', '💤', '🏋️‍♂️', '🎯',
-  '🌱', '📝', '🎨', '🎵', '🧠', '💪', '🌟', '🔥',
-  '🧹', '🚰', '🥤', '🍎', '🚶‍♀️', '🧘‍♂️', '🎪', '🌈'
+const EMOJIS = [
+  '🏃‍♂️', '💧', '📚', '🧘‍♀️', '🥗', '💪', '😴', '🧠',
+  '🎯', '🌟', '🔥', '💎', '🌱', '🌈', '⚡', '🎨',
+  '🏋️‍♂️', '🚴‍♀️', '🏊‍♂️', '🎵', '✍️', '🧹', '🌿', '☀️',
+  '🌙', '🍎', '🥤', '📝', '🎪', '🎭', '🎪', '🎨'
 ];
 
-const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) => {
-  const { habit } = route.params;
-  const isEditing = !!habit;
-
-  const [formData, setFormData] = useState<HabitFormData>({
-    name: '',
-    icon: '💧',
-  });
+const AddHabitScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
+  const [name, setName] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState('🏃‍♂️');
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const habit = route.params?.habit;
 
   useEffect(() => {
     if (habit) {
-      setFormData({
-        name: habit.name,
-        icon: habit.icon,
-      });
+      setIsEditing(true);
+      setName(habit.name);
+      setSelectedEmoji(habit.icon);
     }
   }, [habit]);
 
   const handleSave = async () => {
-    // Validate form data
-    const nameValidation = HabitUtils.validateHabitName(formData.name);
-    if (!nameValidation.isValid) {
-      Alert.alert('Error', nameValidation.error);
+    if (!name.trim()) {
+      Alert.alert('Error', 'Please enter a habit name');
       return;
     }
-
-    // Debug: Log the form data being saved
-    console.log('Saving habit with data:', {
-      name: formData.name,
-      icon: formData.icon,
-    });
 
     setLoading(true);
 
@@ -70,117 +51,144 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
         // Update existing habit
         const updatedHabit: Habit = {
           ...habit,
-          name: formData.name.trim(),
-          icon: formData.icon,
+          name: name.trim(),
+          icon: selectedEmoji,
           updatedAt: new Date().toISOString(),
         };
-
         await StorageService.updateHabit(updatedHabit);
-
         Alert.alert('Success', 'Habit updated successfully!');
       } else {
         // Create new habit
         const newHabit: Habit = {
-          id: HabitUtils.generateId(),
-          name: formData.name.trim(),
-          icon: formData.icon,
+          id: Date.now().toString(),
+          name: name.trim(),
+          icon: selectedEmoji,
           streak: 0,
           longestStreak: 0,
           history: {},
+          dayNotifications: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-
         await StorageService.addHabit(newHabit);
-
         Alert.alert('Success', 'Habit created successfully!');
       }
 
       navigation.goBack();
     } catch (error) {
-      console.error('Error saving habit:', error);
+      console.error('Failed to save habit:', error);
       Alert.alert('Error', 'Failed to save habit');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDelete = () => {
+    if (!habit) return;
+    
+    Alert.alert(
+      'Delete Habit',
+      'Are you sure you want to delete this habit? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await StorageService.deleteHabit(habit.id);
+              Alert.alert('Success', 'Habit deleted successfully!');
+              navigation.goBack();
+            } catch (error) {
+              console.error('Failed to delete habit:', error);
+              Alert.alert('Error', 'Failed to delete habit');
+            }
+          }
+        },
+      ]
+    );
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* Header - Fixed at top */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {isEditing ? 'Edit Habit' : 'Add New Habit'}
-        </Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          disabled={loading}
-        >
-          <Text style={styles.saveText}>
-            {loading ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Scrollable Content */}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Habit Name */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Habit Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Drink Water, Exercise, Read"
-            value={formData.name}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-            maxLength={50}
-            autoFocus={!isEditing}
-          />
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>{isEditing ? 'Edit Habit' : 'New Habit'}</Text>
+          <TouchableOpacity 
+            onPress={handleSave} 
+            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+            disabled={loading}
+          >
+            <Text style={[styles.saveButtonText, loading && styles.saveButtonTextDisabled]}>
+              {loading ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Icon Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Choose an Icon</Text>
-          <View style={styles.iconGrid}>
-            {HABIT_ICONS.map((icon) => (
-              <TouchableOpacity
-                key={icon}
-                style={[
-                  styles.iconOption,
-                  formData.icon === icon && styles.selectedIcon,
-                ]}
-                onPress={() => setFormData(prev => ({ ...prev, icon }))}
-              >
-                <Text style={styles.iconText}>{icon}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Preview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preview</Text>
-          <View style={styles.previewCard}>
-            <View style={styles.previewHeader}>
-              <Text style={styles.previewIcon}>{formData.icon}</Text>
-              <Text style={styles.previewName}>
-                {formData.name || 'Your Habit Name'}
-              </Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Habit Icon Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Choose an Icon</Text>
+            <View style={styles.emojiGrid}>
+              {EMOJIS.map((emoji, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.emojiButton,
+                    selectedEmoji === emoji && styles.selectedEmojiButton,
+                  ]}
+                  onPress={() => setSelectedEmoji(emoji)}
+                >
+                  <Text style={styles.emojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          {/* Habit Name Input */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Habit Name</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g., Drink water, Read 10 pages, Exercise..."
+              placeholderTextColor="#94a3b8"
+              maxLength={50}
+              autoFocus={!isEditing}
+            />
+            <Text style={styles.characterCount}>{name.length}/50</Text>
+          </View>
+
+          {/* Preview */}
+          {name.trim() && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Preview</Text>
+              <View style={styles.previewCard}>
+                <Text style={styles.previewIcon}>{selectedEmoji}</Text>
+                <Text style={styles.previewName}>{name.trim()}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Delete Button (only for editing) */}
+          {isEditing && (
+            <View style={styles.section}>
+              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+                <Text style={styles.deleteButtonText}>Delete Habit</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -189,117 +197,171 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  scrollView: {
+  keyboardAvoidingView: {
     flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e2e8f0',
+  },
+  backButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  backButtonText: {
+    fontSize: fontSizes.md,
+    color: '#64748b',
+    fontWeight: '600',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  cancelButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  cancelText: {
-    color: '#6b7280',
-    fontSize: 16,
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
+    color: '#1e293b',
+    flex: 1,
+    textAlign: 'center',
   },
   saveButton: {
     backgroundColor: '#3b82f6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
   },
   saveButtonDisabled: {
     backgroundColor: '#9ca3af',
   },
-  saveText: {
+  saveButtonText: {
+    fontSize: fontSizes.md,
     color: '#ffffff',
-    fontSize: 16,
     fontWeight: '600',
+  },
+  saveButtonTextDisabled: {
+    color: '#d1d5db',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
   },
   section: {
-    marginBottom: 24,
+    marginTop: spacing.xxl,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: spacing.lg,
+    letterSpacing: 0.5,
   },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  iconGrid: {
+  emojiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: responsiveSize(12),
   },
-  iconOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
+  emojiButton: {
+    width: responsiveSize(60),
+    height: responsiveSize(60),
+    borderRadius: borderRadius.lg,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(2),
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: responsiveSize(4),
+    elevation: 2,
   },
-  selectedIcon: {
+  selectedEmojiButton: {
     borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#dbeafe',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.3,
+    elevation: 4,
   },
-  iconText: {
-    fontSize: 24,
+  emojiText: {
+    fontSize: responsiveSize(28),
   },
-  hintText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 8,
+  input: {
+    backgroundColor: '#ffffff',
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: responsiveSize(16),
+    fontSize: fontSizes.lg,
+    color: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(2),
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: responsiveSize(4),
+    elevation: 2,
+  },
+  characterCount: {
+    fontSize: fontSizes.sm,
+    color: '#64748b',
+    textAlign: 'right',
+    marginTop: spacing.sm,
+    fontWeight: '500',
   },
   previewCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  previewHeader: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(2),
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: responsiveSize(4),
+    elevation: 2,
   },
   previewIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: responsiveSize(40),
+    marginRight: spacing.lg,
   },
   previewName: {
-    fontSize: 18,
+    fontSize: fontSizes.xl,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#1e293b',
+    flex: 1,
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+    borderRadius: borderRadius.lg,
+    paddingVertical: responsiveSize(16),
+    alignItems: 'center',
+    shadowColor: '#ef4444',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveSize(8),
+    elevation: 6,
+  },
+  deleteButtonText: {
+    fontSize: fontSizes.lg,
+    color: '#ffffff',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

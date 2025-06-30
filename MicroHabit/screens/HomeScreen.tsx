@@ -6,57 +6,84 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, Habit, Achievement } from '../types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Habit } from '../types';
 import { StorageService } from '../services/storage';
 import { NotificationService } from '../services/notifications';
-import { HabitUtils } from '../utils/habitUtils';
 import HabitCard from '../components/HabitCard';
 import AchievementModal from '../components/AchievementModal';
+import { HabitUtils } from '../utils/habitUtils';
+import { spacing, fontSizes, borderRadius, responsiveSize } from '../utils/responsive';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
-
-interface HomeScreenProps {
-  navigation: HomeScreenNavigationProp;
-}
-
-const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [achievement, setAchievement] = useState<Achievement | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAchievement, setShowAchievement] = useState(false);
+  const [currentAchievement, setCurrentAchievement] = useState<any>(null);
 
   useEffect(() => {
     loadHabits();
     setupNotifications();
   }, []);
 
+  const setupNotifications = async () => {
+    try {
+      await NotificationService.requestPermissions();
+    } catch (error) {
+      console.error('Failed to setup notifications:', error);
+    }
+  };
+
   const loadHabits = async () => {
     try {
-      const loadedHabits = await StorageService.getHabits();
-      setHabits(loadedHabits);
+      const storedHabits = await StorageService.getHabits();
+      setHabits(storedHabits);
     } catch (error) {
-      console.error('Error loading habits:', error);
+      console.error('Failed to load habits:', error);
       Alert.alert('Error', 'Failed to load habits');
     } finally {
       setLoading(false);
     }
   };
 
-  const setupNotifications = async () => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadHabits();
+    setRefreshing(false);
+  };
+
+  const handleCheckIn = (updatedHabit: Habit) => {
+    setHabits(prevHabits =>
+      prevHabits.map(habit =>
+        habit.id === updatedHabit.id ? updatedHabit : habit
+      )
+    );
+  };
+
+  const handleEdit = (habit: Habit) => {
+    navigation.navigate('AddHabit', { habit });
+  };
+
+  const handleDelete = async (habitId: string) => {
     try {
-      const hasPermission = await NotificationService.requestPermissions();
-      if (!hasPermission) {
-        console.log('Notification permissions not granted');
-      }
+      await StorageService.deleteHabit(habitId);
+      await NotificationService.cancelHabitNotifications(habitId);
+      setHabits(prevHabits => prevHabits.filter(habit => habit.id !== habitId));
     } catch (error) {
-      console.error('Error setting up notifications:', error);
+      console.error('Failed to delete habit:', error);
+      Alert.alert('Error', 'Failed to delete habit');
     }
   };
 
-  const handleCheckIn = async (updatedHabit: Habit) => {
+  const handleAchievement = (achievement: any) => {
+    setCurrentAchievement(achievement);
+    setShowAchievement(true);
+  };
+
+  const handleUpdateHabit = async (updatedHabit: Habit) => {
     try {
       await StorageService.updateHabit(updatedHabit);
       setHabits(prevHabits =>
@@ -65,125 +92,114 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         )
       );
     } catch (error) {
-      console.error('Error updating habit:', error);
+      console.error('Failed to update habit:', error);
       Alert.alert('Error', 'Failed to update habit');
     }
-  };
-
-  const handleEditHabit = (habit: Habit) => {
-    navigation.navigate('AddHabit', { habit });
-  };
-
-  const handleDeleteHabit = async (habitId: string) => {
-    try {
-      await StorageService.deleteHabit(habitId);
-      setHabits(prevHabits => prevHabits.filter(habit => habit.id !== habitId));
-    } catch (error) {
-      console.error('Error deleting habit:', error);
-      Alert.alert('Error', 'Failed to delete habit');
-    }
-  };
-
-  const handleAchievement = (newAchievement: Achievement) => {
-    setAchievement(newAchievement);
-    setShowAchievement(true);
-  };
-
-  const handleCloseAchievement = () => {
-    setShowAchievement(false);
-    setAchievement(null);
-  };
-
-  const getTodayProgress = () => {
-    const completedToday = habits.filter(habit => HabitUtils.isCompletedToday(habit)).length;
-    return { completed: completedToday, total: habits.length };
   };
 
   const getTotalStreak = () => {
     return habits.reduce((total, habit) => total + habit.streak, 0);
   };
 
+  const getCompletedToday = () => {
+    return habits.filter(habit => HabitUtils.isCompletedToday(habit)).length;
+  };
+
+  const getCompletionRate = () => {
+    if (habits.length === 0) return 0;
+    const completed = getCompletedToday();
+    return Math.round((completed / habits.length) * 100);
+  };
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading your habits...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading your habits...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const { completed, total } = getTodayProgress();
-  const totalStreak = getTotalStreak();
-
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>MicroHabit</Text>
-            <Text style={styles.subtitle}>Track your daily progress</Text>
-          </View>
+          <Text style={styles.title}>MicroHabit</Text>
           <TouchableOpacity
-            style={styles.addNewButton}
-            onPress={() => navigation.navigate('AddHabit', {})}
+            style={styles.addButton}
+            onPress={() => navigation.navigate('AddHabit')}
           >
-            <Text style={styles.addNewButtonText}>+ Add New Habit</Text>
+            <Text style={styles.addButtonText}>+</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Progress Summary */}
-      {habits.length > 0 && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressItem}>
-            <Text style={styles.progressNumber}>{completed}/{total}</Text>
-            <Text style={styles.progressLabel}>Today</Text>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {/* Stats Section */}
+        {habits.length > 0 && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{getTotalStreak()}</Text>
+              <Text style={styles.statLabel}>Total Streak</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{getCompletedToday()}</Text>
+              <Text style={styles.statLabel}>Today</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{getCompletionRate()}%</Text>
+              <Text style={styles.statLabel}>Progress</Text>
+            </View>
           </View>
-          <View style={styles.progressDivider} />
-          <View style={styles.progressItem}>
-            <Text style={styles.progressNumber}>{totalStreak}</Text>
-            <Text style={styles.progressLabel}>Total Streak</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Habits List */}
-      <ScrollView style={styles.habitsList} showsVerticalScrollIndicator={false}>
-        {habits.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No habits yet</Text>
-            <Text style={styles.emptyText}>
-              Start building your daily routines by adding your first habit!
-            </Text>
-            <TouchableOpacity
-              style={styles.addFirstButton}
-              onPress={() => navigation.navigate('AddHabit', {})}
-            >
-              <Text style={styles.addFirstButtonText}>Add Your First Habit</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          habits.map(habit => (
-            <HabitCard
-              key={habit.id}
-              habit={habit}
-              onCheckIn={handleCheckIn}
-              onEdit={handleEditHabit}
-              onDelete={handleDeleteHabit}
-              onAchievement={handleAchievement}
-            />
-          ))
         )}
+
+        {/* Habits List */}
+        <View style={styles.habitsContainer}>
+          {habits.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🌱</Text>
+              <Text style={styles.emptyStateTitle}>No habits yet</Text>
+              <Text style={styles.emptyStateText}>
+                Start building your micro-habits by adding your first one!
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyStateButton}
+                onPress={() => navigation.navigate('AddHabit')}
+              >
+                <Text style={styles.emptyStateButtonText}>Add Your First Habit</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            habits.map(habit => (
+              <HabitCard
+                key={habit.id}
+                habit={habit}
+                onCheckIn={handleCheckIn}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onAchievement={handleAchievement}
+                onUpdateHabit={handleUpdateHabit}
+              />
+            ))
+          )}
+        </View>
       </ScrollView>
 
       {/* Achievement Modal */}
       <AchievementModal
-        achievement={achievement}
         visible={showAchievement}
-        onClose={handleCloseAchievement}
+        achievement={currentAchievement}
+        onClose={() => setShowAchievement(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -199,117 +215,134 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: fontSizes.lg,
+    color: '#64748b',
+    fontWeight: '500',
   },
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerText: {
-    flex: 1,
-    marginRight: 16,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
+    fontSize: fontSizes.xxxl,
+    fontWeight: '800',
+    color: '#1e293b',
+    letterSpacing: -1,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  addNewButton: {
+  addButton: {
     backgroundColor: '#3b82f6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    width: responsiveSize(44),
+    height: responsiveSize(44),
+    borderRadius: responsiveSize(22),
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveSize(8),
+    elevation: 6,
   },
-  addNewButtonText: {
+  addButtonText: {
+    fontSize: fontSizes.xxl,
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  progressContainer: {
+  content: {
+    flex: 1,
+  },
+  statsContainer: {
     flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  statCard: {
+    flex: 1,
     backgroundColor: '#ffffff',
-    margin: 16,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: responsiveSize(2),
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.05,
+    shadowRadius: responsiveSize(4),
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
-  progressItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  progressNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  statNumber: {
+    fontSize: fontSizes.xxl,
+    fontWeight: '800',
     color: '#3b82f6',
-    marginBottom: 4,
+    marginBottom: responsiveSize(4),
   },
-  progressLabel: {
-    fontSize: 14,
-    color: '#6b7280',
+  statLabel: {
+    fontSize: fontSizes.sm,
+    color: '#64748b',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  progressDivider: {
-    width: 1,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 20,
-  },
-  habitsList: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+  habitsContainer: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: responsiveSize(80),
+    paddingHorizontal: spacing.xl,
   },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 12,
+  emptyStateIcon: {
+    fontSize: responsiveSize(80),
+    marginBottom: spacing.lg,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#6b7280',
+  emptyStateTitle: {
+    fontSize: fontSizes.xxl,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: spacing.md,
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
   },
-  addFirstButton: {
+  emptyStateText: {
+    fontSize: fontSizes.md,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: responsiveSize(24),
+    marginBottom: spacing.xl,
+  },
+  emptyStateButton: {
     backgroundColor: '#3b82f6',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: responsiveSize(16),
+    borderRadius: borderRadius.lg,
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveSize(8),
+    elevation: 6,
   },
-  addFirstButtonText: {
+  emptyStateButtonText: {
+    fontSize: fontSizes.lg,
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

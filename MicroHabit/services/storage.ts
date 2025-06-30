@@ -11,7 +11,10 @@ export class StorageService {
   private static migrateHabits(habits: any[]): Habit[] {
     return habits.map(habit => {
       const { reminderTime, ...migratedHabit } = habit;
-      return migratedHabit as Habit;
+      return {
+        ...migratedHabit,
+        dayNotifications: migratedHabit.dayNotifications || [],
+      } as Habit;
     });
   }
 
