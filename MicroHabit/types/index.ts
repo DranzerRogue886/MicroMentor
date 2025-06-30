@@ -2,7 +2,6 @@ export interface Habit {
   id: string;
   name: string;
   icon: string;
-  reminderTime: string;
   streak: number;
   longestStreak: number;
   history: Record<string, boolean>;
@@ -33,5 +32,4 @@ export type RootStackParamList = {
 export interface HabitFormData {
   name: string;
   icon: string;
-  reminderTime: string;
 } 

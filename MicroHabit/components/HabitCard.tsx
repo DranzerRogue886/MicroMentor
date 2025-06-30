@@ -103,11 +103,6 @@ const HabitCard: React.FC<HabitCardProps> = ({
           <Text style={styles.icon}>{habit.icon}</Text>
           <View style={styles.textContainer}>
             <Text style={styles.name}>{habit.name}</Text>
-            {habit.reminderTime && (
-              <Text style={styles.reminderTime}>
-                Reminder: {HabitUtils.formatTime(habit.reminderTime)}
-              </Text>
-            )}
           </View>
         </View>
         
@@ -202,10 +197,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f2937',
     marginBottom: 4,
-  },
-  reminderTime: {
-    fontSize: 14,
-    color: '#6b7280',
   },
   streakContainer: {
     alignItems: 'center',

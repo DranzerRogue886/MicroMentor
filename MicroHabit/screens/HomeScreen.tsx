@@ -77,7 +77,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const handleDeleteHabit = async (habitId: string) => {
     try {
       await StorageService.deleteHabit(habitId);
-      await NotificationService.cancelHabitReminder(habitId);
       setHabits(prevHabits => prevHabits.filter(habit => habit.id !== habitId));
     } catch (error) {
       console.error('Error deleting habit:', error);
@@ -120,8 +119,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>MicroHabit</Text>
-        <Text style={styles.subtitle}>Track your daily progress</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>MicroHabit</Text>
+            <Text style={styles.subtitle}>Track your daily progress</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addNewButton}
+            onPress={() => navigation.navigate('AddHabit', {})}
+          >
+            <Text style={styles.addNewButtonText}>+ Add New Habit</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Progress Summary */}
@@ -168,16 +177,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         )}
       </ScrollView>
 
-      {/* Add Habit Button */}
-      {habits.length > 0 && habits.length < 5 && (
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddHabit', {})}
-        >
-          <Text style={styles.addButtonText}>+ Add Habit</Text>
-        </TouchableOpacity>
-      )}
-
       {/* Achievement Modal */}
       <AchievementModal
         achievement={achievement}
@@ -212,6 +211,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerText: {
+    flex: 1,
+    marginRight: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -221,6 +229,18 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#6b7280',
+  },
+  addNewButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  addNewButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -259,6 +279,7 @@ const styles = StyleSheet.create({
   habitsList: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   emptyState: {
     flex: 1,
@@ -286,19 +307,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   addFirstButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  addButton: {
-    backgroundColor: '#3b82f6',
-    marginHorizontal: 16,
-    marginBottom: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',

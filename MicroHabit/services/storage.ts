@@ -7,11 +7,27 @@ const STORAGE_KEYS = {
 };
 
 export class StorageService {
+  // Migration function to remove reminderTime from existing habits
+  private static migrateHabits(habits: any[]): Habit[] {
+    return habits.map(habit => {
+      const { reminderTime, ...migratedHabit } = habit;
+      return migratedHabit as Habit;
+    });
+  }
+
   // Habits
   static async getHabits(): Promise<Habit[]> {
     try {
       const habitsJson = await AsyncStorage.getItem(STORAGE_KEYS.HABITS);
-      return habitsJson ? JSON.parse(habitsJson) : [];
+      if (habitsJson) {
+        const habits = JSON.parse(habitsJson);
+        // Migrate existing habits to remove reminderTime
+        const migratedHabits = this.migrateHabits(habits);
+        // Save migrated habits back to storage
+        await this.saveHabits(migratedHabits);
+        return migratedHabits;
+      }
+      return [];
     } catch (error) {
       console.error('Error loading habits:', error);
       return [];

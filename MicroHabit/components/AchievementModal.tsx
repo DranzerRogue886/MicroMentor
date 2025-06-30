@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import {
+import 
+{
   View,
   Text,
   TouchableOpacity,
@@ -10,7 +11,8 @@ import {
 } from 'react-native';
 import { Achievement } from '../types';
 
-interface AchievementModalProps {
+interface AchievementModalProps 
+{
   achievement: Achievement | null;
   visible: boolean;
   onClose: () => void;
@@ -27,15 +29,18 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
   const opacityValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (visible && achievement) {
+    if (visible && achievement) 
+      {
       // Animate in
       Animated.parallel([
-        Animated.timing(scaleValue, {
+        Animated.timing(scaleValue, 
+          {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.timing(opacityValue, {
+        Animated.timing(opacityValue, 
+          {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
@@ -53,7 +58,8 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
 
   const handleClose = () => {
     Animated.parallel([
-      Animated.timing(scaleValue, {
+      Animated.timing(scaleValue, 
+        {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,

@@ -14,9 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList, Habit, HabitFormData } from '../types';
 import { StorageService } from '../services/storage';
-import { NotificationService } from '../services/notifications';
 import { HabitUtils } from '../utils/habitUtils';
-import TimePicker from '../components/TimePicker';
 
 type AddHabitScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddHabit'>;
 type AddHabitScreenRouteProp = RouteProp<RootStackParamList, 'AddHabit'>;
@@ -39,7 +37,6 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
   const [formData, setFormData] = useState<HabitFormData>({
     name: '',
     icon: '💧',
-    reminderTime: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +45,6 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
       setFormData({
         name: habit.name,
         icon: habit.icon,
-        reminderTime: habit.reminderTime,
       });
     }
   }, [habit]);
@@ -61,17 +57,10 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
       return;
     }
 
-    const timeValidation = HabitUtils.validateReminderTime(formData.reminderTime);
-    if (!timeValidation.isValid) {
-      Alert.alert('Error', timeValidation.error);
-      return;
-    }
-
     // Debug: Log the form data being saved
     console.log('Saving habit with data:', {
       name: formData.name,
       icon: formData.icon,
-      reminderTime: formData.reminderTime,
     });
 
     setLoading(true);
@@ -83,19 +72,10 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
           ...habit,
           name: formData.name.trim(),
           icon: formData.icon,
-          reminderTime: formData.reminderTime,
           updatedAt: new Date().toISOString(),
         };
 
         await StorageService.updateHabit(updatedHabit);
-        
-        // Update notification
-        if (formData.reminderTime) {
-          await NotificationService.cancelHabitReminder(habit.id);
-          await NotificationService.scheduleHabitReminder(updatedHabit);
-        } else {
-          await NotificationService.cancelHabitReminder(habit.id);
-        }
 
         Alert.alert('Success', 'Habit updated successfully!');
       } else {
@@ -104,7 +84,6 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
           id: HabitUtils.generateId(),
           name: formData.name.trim(),
           icon: formData.icon,
-          reminderTime: formData.reminderTime,
           streak: 0,
           longestStreak: 0,
           history: {},
@@ -113,11 +92,6 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
         };
 
         await StorageService.addHabit(newHabit);
-
-        // Schedule notification if reminder time is set
-        if (formData.reminderTime) {
-          await NotificationService.scheduleHabitReminder(newHabit);
-        }
 
         Alert.alert('Success', 'Habit created successfully!');
       }
@@ -129,11 +103,6 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatTime = (time: string): string => {
-    if (!time) return 'Set reminder time';
-    return HabitUtils.formatTime(time);
   };
 
   return (
@@ -208,37 +177,9 @@ const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation, route }) =>
                 {formData.name || 'Your Habit Name'}
               </Text>
             </View>
-            {formData.reminderTime && (
-              <Text style={styles.previewReminder}>
-                Reminder: {formatTime(formData.reminderTime)}
-              </Text>
-            )}
           </View>
         </View>
       </ScrollView>
-
-      {/* Time Picker - Fixed at bottom with proper spacing */}
-      <View style={styles.timePickerContainer}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Daily Reminder (Optional)</Text>
-          <TimePicker
-            value={formData.reminderTime}
-            onTimeChange={(time) => {
-              console.log('TimePicker onTimeChange called with:', time);
-              setFormData(prev => ({ ...prev, reminderTime: time }));
-            }}
-            placeholder="Set reminder time"
-          />
-          {formData.reminderTime && (
-            <Text style={styles.timeSavedText}>
-              ✅ Time set: {formatTime(formData.reminderTime)}
-            </Text>
-          )}
-          <Text style={styles.hintText}>
-            Use 24-hour format (HH:MM) or leave empty for no reminder
-          </Text>
-        </View>
-      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -339,13 +280,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 8,
   },
-  timePickerContainer: {
-    padding: 20,
-    paddingTop: 0,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
   previewCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -366,15 +300,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1f2937',
-  },
-  previewReminder: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  timeSavedText: {
-    fontSize: 14,
-    color: '#3b82f6',
-    marginTop: 8,
   },
 });
 

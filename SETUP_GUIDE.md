@@ -25,13 +25,7 @@ npm start
 1. Tap "+ Add Habit"
 2. Enter name (e.g., "Drink Water")
 3. Choose emoji from the grid (💧, 🏃‍♂️, 📚, etc.)
-4. **Set reminder time** using the interactive time picker:
-   - Tap the time button to open the modal
-   - Scroll through hours (0-23) and minutes (0-59)
-   - Feel haptic feedback as you select
-   - See the selected time in real-time
-   - Tap "Done" to confirm
-5. Save your habit!
+4. Save your habit!
 
 ### Daily Check-ins
 - Tap "✔ I Did It!" on any habit
@@ -42,41 +36,19 @@ npm start
 - ✅ Create/edit/delete habits (up to 5)
 - ✅ Daily check-ins with streak tracking
 - ✅ Local storage (works offline)
-- ✅ Interactive time picker with haptics
 - ✅ Achievement celebrations with animations
 - ✅ Beautiful, responsive UI
 - ✅ Cross-platform (iOS & Android)
-
-## ⏰ Time Picker Features
-
-The app includes a beautiful interactive time picker:
-
-### ✨ **Interactive Design**
-- **Rotating wheel** with smooth scrolling physics
-- **Centered modal** - never cut off by screen boundaries
-- **See-through selector** - clearly see selected time
-- **Haptic feedback** - tactile confirmation
-- **Real-time display** - shows current selection
-- **24-hour format** with proper validation
-
-### 🎯 **How to Use**
-1. Tap the time button in Add/Edit Habit screen
-2. Scroll through hours and minutes
-3. Feel haptic feedback as you select
-4. See the selected time in real-time
-5. Tap "Done" to confirm or "Clear Reminder" to remove
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 - **"Module not found"**: Run `npm install` to install dependencies
-- **Time picker not working**: Ensure `expo-haptics` is installed
 - **Build errors**: Run `npm start -c` to clear cache
 - **Notifications not working**: Currently using mock service (see NOTIFICATIONS_SETUP.md)
 
 ### Dependencies
 The app uses these key dependencies:
-- `expo-haptics` - for tactile feedback
 - `react-native-reanimated` - for smooth animations
 - `react-native-gesture-handler` - for gesture handling
 - `@react-native-async-storage/async-storage` - for local data storage

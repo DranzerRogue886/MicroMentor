@@ -73,14 +73,6 @@ export class HabitUtils {
     return Math.round((completedDays / days) * 100);
   }
 
-  static formatTime(time: string): string {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  }
-
   static validateHabitName(name: string): { isValid: boolean; error?: string } {
     if (!name.trim()) {
       return { isValid: false, error: 'Habit name is required' };
@@ -88,19 +80,6 @@ export class HabitUtils {
     if (name.length > 50) {
       return { isValid: false, error: 'Habit name must be 50 characters or less' };
     }
-    return { isValid: true };
-  }
-
-  static validateReminderTime(time: string): { isValid: boolean; error?: string } {
-    if (!time) {
-      return { isValid: true }; // Reminder time is optional
-    }
-    
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(time)) {
-      return { isValid: false, error: 'Please use 24-hour format (HH:MM)' };
-    }
-    
     return { isValid: true };
   }
 
