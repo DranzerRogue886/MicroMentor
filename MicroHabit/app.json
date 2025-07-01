@@ -25,17 +25,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#3b82f6",
-          "sounds": ["./assets/notification-sound.wav"],
-          "mode": "production"
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "micro-mentor-1f44e"
