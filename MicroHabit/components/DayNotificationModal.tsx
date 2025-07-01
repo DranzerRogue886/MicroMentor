@@ -22,13 +22,13 @@ interface DayNotificationModalProps {
 }
 
 const DAY_LABELS = {
+  'S': 'Sunday',
   'M': 'Monday',
-  'Tu': 'Tuesday', 
+  'T': 'Tuesday', 
   'W': 'Wednesday',
-  'Th': 'Thursday',
+  'R': 'Thursday',
   'F': 'Friday',
-  'Sa': 'Saturday',
-  'Su': 'Sunday'
+  'A': 'Saturday'
 };
 
 const { width } = Dimensions.get('window');

@@ -1,75 +1,68 @@
 import { Platform, Alert } from 'react-native';
-import PushNotification from 'react-native-push-notification';
+import * as Notifications from 'expo-notifications';
 import { Habit, DayNotification } from '../types';
 import { StorageService } from './storage';
 
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+// Set up notification response handler for recurring notifications
+Notifications.addNotificationResponseReceivedListener((response) => {
+  console.log('Notification response received:', response);
+  
+  // Handle recurring notifications
+  const data = response.notification.request.content.data;
+  if (data && data.habitId && data.day && data.time) {
+    // Reschedule the next occurrence
+    NotificationService.rescheduleRecurringNotification(
+      data.habitId as string,
+      data.day as string,
+      data.time as string
+    );
+  }
+});
+
 export class NotificationService {
+  private static isInitialized = false;
+
   static async initialize(): Promise<void> {
     try {
-      console.log('Initializing React Native notification service...');
+      if (this.isInitialized) {
+        console.log('Notification service already initialized');
+        return;
+      }
+
+      console.log('Initializing Expo notification service...');
       
-      // Configure push notifications
-      this.configurePushNotifications();
+      // Request permissions
+      const { status } = await Notifications.requestPermissionsAsync();
+      console.log('Notification permission status:', status);
       
-      console.log('React Native notification service initialized successfully');
+      // Note: Push tokens are not available in Expo Go with SDK 53+
+      // Local notifications work fine in Expo Go
+      console.log('Using local notifications (compatible with Expo Go)');
+      
+      this.isInitialized = true;
+      console.log('Expo notification service initialized successfully');
     } catch (error) {
       console.error('Error initializing notification service:', error);
-    }
-  }
-
-  private static configurePushNotifications(): void {
-    // Configure Android push notifications
-    if (Platform.OS === 'android') {
-      PushNotification.configure({
-        onRegister: function (token: { os: string; token: string }) {
-          console.log('Android notification token:', token);
-        },
-        onNotification: function (notification: any) {
-          console.log('Android notification received:', notification);
-          notification.finish();
-        },
-        permissions: {
-          alert: true,
-          badge: true,
-          sound: true,
-        },
-        popInitialNotification: true,
-        requestPermissions: true,
-      });
-
-      // Create notification channel for Android
-      PushNotification.createChannel(
-        {
-          channelId: 'micro-remindo',
-          channelName: 'Micro-remindo',
-          channelDescription: 'Reminders for your micro-habits',
-          playSound: true,
-          soundName: 'notification-sound.wav',
-          importance: 4,
-          vibrate: true,
-        },
-        (created: boolean) => console.log(`Android notification channel created: ${created}`)
-      );
-    }
-
-    // Configure iOS push notifications
-    if (Platform.OS === 'ios') {
-      // For iOS, we'll use a simpler approach with alerts for now
-      console.log('iOS notifications configured with alert fallbacks');
+      // Don't throw the error, just log it so the app can continue
     }
   }
 
   static async requestPermissions(): Promise<boolean> {
     try {
       console.log('Requesting notification permissions...');
-      
-      if (Platform.OS === 'android') {
-        // Android permissions are handled by the configure method
-        return true;
-      } else {
-        // For iOS, we'll use a simple approach
-        return true;
-      }
+      const { status } = await Notifications.requestPermissionsAsync();
+      return status === 'granted';
     } catch (error) {
       console.error('Error requesting notification permissions:', error);
       return false;
@@ -78,11 +71,19 @@ export class NotificationService {
 
   static async sendImmediateTestNotification(): Promise<void> {
     try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
       console.log('Sending immediate test notification...');
       
-      this.showLocalNotification({
-        title: '🔔 Immediate Test',
-        message: 'This is an immediate test notification from Micro-remindo!',
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🔔 Immediate Test',
+          body: 'This is an immediate test notification from Micro-remindo!',
+          sound: true,
+        },
+        trigger: null, // null means send immediately
       });
       
       console.log('Immediate test notification sent');
@@ -93,12 +94,21 @@ export class NotificationService {
 
   static async sendScheduledTestNotification(): Promise<void> {
     try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
       console.log('Sending scheduled test notification (5 seconds)...');
       
-      this.scheduleLocalNotification({
-        title: '⏰ Scheduled Test',
-        message: 'This is a scheduled test notification from Micro-remindo!',
-        date: new Date(Date.now() + 5000), // 5 seconds from now
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '⏰ Scheduled Test',
+          body: 'This is a scheduled test notification from Micro-remindo!',
+          sound: true,
+        },
+        trigger: {
+          seconds: 5,
+        } as any,
       });
       
       console.log('Scheduled test notification sent');
@@ -109,6 +119,10 @@ export class NotificationService {
 
   static async scheduleNotificationsForHabit(habit: Habit): Promise<void> {
     try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
       console.log(`Scheduling notifications for habit: ${habit.name}`);
       
       // Cancel existing notifications for this habit
@@ -140,11 +154,20 @@ export class NotificationService {
 
   static async cancelNotificationsForHabit(habitId: string): Promise<void> {
     try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
       console.log(`Canceling notifications for habit: ${habitId}`);
       
-      if (Platform.OS === 'android') {
-        // Cancel all notifications for this habit
-        PushNotification.cancelAllLocalNotifications();
+      // Get all scheduled notifications
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+      
+      // Cancel notifications that match this habit ID
+      for (const notification of scheduledNotifications) {
+        if (notification.content.data?.habitId === habitId) {
+          await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+        }
       }
     } catch (error) {
       console.error(`Error canceling notifications for habit ${habitId}:`, error);
@@ -153,9 +176,13 @@ export class NotificationService {
 
   static async getScheduledNotifications(): Promise<any[]> {
     try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
       console.log('Getting scheduled notifications...');
-      // For now, return empty array as getting scheduled notifications is complex
-      return [];
+      const notifications = await Notifications.getAllScheduledNotificationsAsync();
+      return notifications;
     } catch (error) {
       console.error('Error getting scheduled notifications:', error);
       return [];
@@ -166,6 +193,11 @@ export class NotificationService {
     try {
       const [hours, minutes] = time.split(':').map(Number);
       const dayOfWeek = this.getDayOfWeek(day);
+      
+      console.log(`DEBUG: Scheduling notification for habit "${habit.name}"`);
+      console.log(`DEBUG: Day: "${day}", Time: "${time}"`);
+      console.log(`DEBUG: Parsed hours: ${hours}, minutes: ${minutes}`);
+      console.log(`DEBUG: Day of week: ${dayOfWeek}`);
       
       if (dayOfWeek === null) {
         console.error(`Invalid day: ${day}`);
@@ -178,72 +210,39 @@ export class NotificationService {
       const nextOccurrence = this.getNextOccurrence(dayOfWeek, hours, minutes);
       
       if (nextOccurrence) {
-        this.scheduleLocalNotification({
-          title: `${habit.icon} Time for: ${habit.name}`,
-          message: `It's time to complete your habit: ${habit.name}`,
-          date: nextOccurrence,
-          repeatType: 'week',
-        });
+        // Use date-based trigger instead of calendar trigger for better Expo Go compatibility
+        const now = new Date();
+        const timeUntilNotification = nextOccurrence.getTime() - now.getTime();
         
-        console.log(`Successfully scheduled notification for ${habit.name} on ${day} at ${time}`);
-        return true;
+        console.log(`DEBUG: Current time: ${now.toLocaleString()}`);
+        console.log(`DEBUG: Next occurrence: ${nextOccurrence.toLocaleString()}`);
+        console.log(`DEBUG: Time until notification: ${Math.round(timeUntilNotification / 1000 / 60)} minutes`);
+        
+        if (timeUntilNotification > 0) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `${habit.icon} Time for: ${habit.name}`,
+              body: `It's time to complete your habit: ${habit.name}`,
+              sound: true,
+              data: { habitId: habit.id, day: day, time: time },
+            },
+            trigger: {
+              date: nextOccurrence,
+            } as any,
+          });
+          
+          console.log(`Successfully scheduled notification for ${habit.name} on ${day} at ${time} (${Math.round(timeUntilNotification / 1000 / 60)} minutes from now)`);
+          return true;
+        } else {
+          console.log(`Time has already passed for ${habit.name} on ${day} at ${time}`);
+          return false;
+        }
       }
       
       return false;
     } catch (error) {
       console.error(`Error scheduling notification for ${habit.name} on ${day} at ${time}:`, error);
       return false;
-    }
-  }
-
-  private static showLocalNotification(notification: {
-    title: string;
-    message: string;
-  }): void {
-    if (Platform.OS === 'android') {
-      PushNotification.localNotification({
-        channelId: 'micro-remindo',
-        title: notification.title,
-        message: notification.message,
-        playSound: true,
-        soundName: 'notification-sound.wav',
-        importance: 'high',
-        vibrate: true,
-        vibration: 300,
-      });
-    } else {
-      // For iOS, show an alert for now
-      Alert.alert(notification.title, notification.message);
-    }
-  }
-
-  private static scheduleLocalNotification(notification: {
-    title: string;
-    message: string;
-    date: Date;
-    repeatType?: 'week' | 'day' | 'hour';
-  }): void {
-    if (Platform.OS === 'android') {
-      PushNotification.localNotificationSchedule({
-        channelId: 'micro-remindo',
-        title: notification.title,
-        message: notification.message,
-        date: notification.date,
-        repeatType: notification.repeatType,
-        playSound: true,
-        soundName: 'notification-sound.wav',
-        importance: 'high',
-        vibrate: true,
-        vibration: 300,
-      });
-    } else {
-      // For iOS, schedule a simple alert for now
-      const timeUntilNotification = notification.date.getTime() - Date.now();
-      if (timeUntilNotification > 0) {
-        setTimeout(() => {
-          Alert.alert(notification.title, notification.message);
-        }, timeUntilNotification);
-      }
     }
   }
 
@@ -255,7 +254,7 @@ export class NotificationService {
       
       // Calculate days until next occurrence
       const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const targetDay = dayOfWeek === 7 ? 0 : dayOfWeek; // Convert to 0-based
+      const targetDay = dayOfWeek; // Already 0-based
       
       let daysUntilTarget = targetDay - currentDay;
       if (daysUntilTarget <= 0) {
@@ -269,6 +268,7 @@ export class NotificationService {
       nextOccurrence.setDate(now.getDate() + daysUntilTarget);
       nextOccurrence.setHours(hours, minutes, 0, 0);
       
+      console.log(`Next occurrence calculated: ${nextOccurrence.toLocaleString()}`);
       return nextOccurrence;
     } catch (error) {
       console.error('Error calculating next occurrence:', error);
@@ -277,14 +277,15 @@ export class NotificationService {
   }
 
   private static getDayOfWeek(day: string): number | null {
+    // Use 0-based indexing for Expo notifications (0 = Sunday, 1 = Monday, etc.)
     const dayMap: { [key: string]: number } = {
-      'S': 1, // Sunday (1-based for consistency)
-      'M': 2, // Monday
-      'T': 3, // Tuesday
-      'W': 4, // Wednesday
-      'R': 5, // Thursday
-      'F': 6, // Friday
-      'A': 7, // Saturday
+      'S': 0, // Sunday (0-based)
+      'M': 1, // Monday
+      'T': 2, // Tuesday
+      'W': 3, // Wednesday
+      'R': 4, // Thursday
+      'F': 5, // Friday
+      'A': 6, // Saturday
     };
     
     const result = dayMap[day];
@@ -293,5 +294,31 @@ export class NotificationService {
       return null;
     }
     return result;
+  }
+
+  static async rescheduleRecurringNotification(habitId: string, day: string, time: string): Promise<void> {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      console.log(`Rescheduling notification for habit: ${habitId}`);
+      
+      // Get the habit from storage to reschedule
+      const habits = await StorageService.getHabits();
+      const habit = habits.find(h => h.id === habitId);
+      
+      if (habit) {
+        // Cancel existing notifications for this habit
+        await this.cancelNotificationsForHabit(habitId);
+        
+        // Schedule new notification
+        await this.scheduleHabitNotification(habit, day, time);
+      } else {
+        console.error(`Habit not found for rescheduling: ${habitId}`);
+      }
+    } catch (error) {
+      console.error(`Error rescheduling notification for habit ${habitId}:`, error);
+    }
   }
 } 

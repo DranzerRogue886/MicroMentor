@@ -20,11 +20,21 @@
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF"
       },
-      "package": "micro_mentor.ME"
+      "package": "micro_mentor.ME",
+      "permissions": [
+        "NOTIFICATIONS",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications"
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "micro-mentor-1f44e"
