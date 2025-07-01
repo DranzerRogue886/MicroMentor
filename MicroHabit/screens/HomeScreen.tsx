@@ -14,6 +14,7 @@ import { StorageService } from '../services/storage';
 import { NotificationService } from '../services/notifications';
 import HabitCard from '../components/HabitCard';
 import AchievementModal from '../components/AchievementModal';
+import NotificationPermissionModal from '../components/NotificationPermissionModal';
 import { HabitUtils } from '../utils/habitUtils';
 import { spacing, fontSizes, borderRadius, responsiveSize } from '../utils/responsive';
 
@@ -23,11 +24,26 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showAchievement, setShowAchievement] = useState(false);
   const [currentAchievement, setCurrentAchievement] = useState<any>(null);
+  const [showNotificationPermission, setShowNotificationPermission] = useState(false);
 
   useEffect(() => {
     loadHabits();
-    setupNotifications();
+    checkNotificationPermissions();
   }, []);
+
+  const checkNotificationPermissions = async () => {
+    try {
+      const granted = await NotificationService.requestPermissions();
+      if (!granted) {
+        // Show permission modal after a short delay
+        setTimeout(() => {
+          setShowNotificationPermission(true);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error checking notification permissions:', error);
+    }
+  };
 
   const setupNotifications = async () => {
     try {
@@ -95,6 +111,11 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       console.error('Failed to update habit:', error);
       Alert.alert('Error', 'Failed to update habit');
     }
+  };
+
+  const handleNotificationPermissionGranted = () => {
+    console.log('Notification permissions granted');
+    // You could show a success message or update UI here
   };
 
   const getTotalStreak = () => {
@@ -191,6 +212,44 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             ))
           )}
         </View>
+
+        {/* Test Notifications Section */}
+        <View style={styles.testSection}>
+          <Text style={styles.testSectionTitle}>Test Micro-remindo</Text>
+          <Text style={styles.testSectionSubtitle}>
+            Test the notification system to ensure it's working properly
+          </Text>
+          
+          <View style={styles.testButtonsContainer}>
+            <TouchableOpacity
+              style={styles.lightningButton}
+              onPress={() => NotificationService.testImmediateNotification()}
+            >
+              <Text style={styles.lightningButtonIcon}>⚡</Text>
+              <Text style={styles.lightningButtonText}>Test Now</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.scheduledTestButton}
+              onPress={() => NotificationService.testNotification()}
+            >
+              <Text style={styles.scheduledTestButtonIcon}>🔔</Text>
+              <Text style={styles.scheduledTestButtonText}>Test Scheduled</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={async () => {
+                const notifications = await NotificationService.getScheduledNotifications();
+                console.log('Current scheduled notifications:', notifications);
+                Alert.alert('Debug Info', `Found ${notifications.length} scheduled notifications. Check console for details.`);
+              }}
+            >
+              <Text style={styles.debugButtonIcon}>🐛</Text>
+              <Text style={styles.debugButtonText}>Debug Info</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
       {/* Achievement Modal */}
@@ -198,6 +257,13 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         visible={showAchievement}
         achievement={currentAchievement}
         onClose={() => setShowAchievement(false)}
+      />
+
+      {/* Notification Permission Modal */}
+      <NotificationPermissionModal
+        visible={showNotificationPermission}
+        onClose={() => setShowNotificationPermission(false)}
+        onPermissionGranted={handleNotificationPermissionGranted}
       />
     </SafeAreaView>
   );
@@ -343,6 +409,96 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  testSection: {
+    padding: spacing.xl,
+  },
+  testSectionTitle: {
+    fontSize: fontSizes.xxl,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: spacing.md,
+  },
+  testSectionSubtitle: {
+    fontSize: fontSizes.md,
+    color: '#64748b',
+    marginBottom: spacing.xl,
+  },
+  testButtonsContainer: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  lightningButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: responsiveSize(16),
+    borderRadius: borderRadius.lg,
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveSize(8),
+    elevation: 6,
+  },
+  lightningButtonIcon: {
+    fontSize: fontSizes.xl,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  lightningButtonText: {
+    fontSize: fontSizes.lg,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  scheduledTestButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: responsiveSize(16),
+    borderRadius: borderRadius.lg,
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveSize(8),
+    elevation: 6,
+  },
+  scheduledTestButtonIcon: {
+    fontSize: fontSizes.xl,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  scheduledTestButtonText: {
+    fontSize: fontSizes.lg,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  debugButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: responsiveSize(16),
+    borderRadius: borderRadius.lg,
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: responsiveSize(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveSize(8),
+    elevation: 6,
+  },
+  debugButtonIcon: {
+    fontSize: fontSizes.xl,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  debugButtonText: {
+    fontSize: fontSizes.lg,
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });
 

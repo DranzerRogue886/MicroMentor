@@ -25,6 +25,28 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3b82f6",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#3b82f6",
+      "iosDisplayInForeground": true,
+      "androidMode": "default",
+      "androidCollapsedTitle": "Micro-remindo",
+      "androidChannelId": "default",
+      "androidChannelName": "Micro-remindo",
+      "androidChannelDescription": "Reminders for your micro-habits",
+      "androidImportance": "high",
+      "androidShowBadge": false
+    },
     "extra": {
       "eas": {
         "projectId": "micro-mentor-1f44e"

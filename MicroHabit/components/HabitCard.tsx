@@ -22,7 +22,9 @@ interface HabitCardProps {
   onUpdateHabit: (habit: Habit) => void;
 }
 
-const DAYS = ['M', 'Tu', 'W', 'Th', 'F', 'Sa', 'Su'];
+// Updated day mapping to match the notification service
+const DAYS = ['S', 'M', 'T', 'W', 'R', 'F', 'A']; // Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
+const DAY_LABELS = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa']; // Display labels
 
 const HabitCard: React.FC<HabitCardProps> = ({
   habit,
@@ -40,6 +42,21 @@ const HabitCard: React.FC<HabitCardProps> = ({
   const isCompletedToday = HabitUtils.isCompletedToday(habit);
   const history = HabitUtils.getHistoryForDays(habit, 7);
   const completionRate = HabitUtils.getCompletionRate(habit, 7);
+
+  // Get current day of week (0 = Sunday, 1 = Monday, etc.)
+  const getCurrentDayOfWeek = (): number => {
+    return new Date().getDay();
+  };
+
+  // Check if a day is today
+  const isToday = (dayIndex: number): boolean => {
+    return dayIndex === getCurrentDayOfWeek();
+  };
+
+  // Get the day key for the habit's dayNotifications
+  const getDayKey = (dayIndex: number): string => {
+    return DAYS[dayIndex];
+  };
 
   const handleCheckIn = async () => {
     if (isCompletedToday) {
@@ -145,6 +162,7 @@ const HabitCard: React.FC<HabitCardProps> = ({
             const isCompleted = history[index];
             const notificationCount = getDayNotificationCount(day);
             const hasNotifications = notificationCount > 0;
+            const isCurrentDay = isToday(index);
             
             return (
               <TouchableOpacity
@@ -153,6 +171,7 @@ const HabitCard: React.FC<HabitCardProps> = ({
                   styles.dayButton,
                   isCompleted && styles.completedDayButton,
                   hasNotifications && styles.notificationDayButton,
+                  isCurrentDay && styles.todayButton,
                 ]}
                 onPress={() => handleDayPress(day)}
                 onPressIn={() => console.log('Day button pressed in:', day)}
@@ -163,8 +182,9 @@ const HabitCard: React.FC<HabitCardProps> = ({
                   styles.dayButtonText,
                   isCompleted && styles.completedDayButtonText,
                   hasNotifications && styles.notificationDayButtonText,
+                  isCurrentDay && styles.todayButtonText,
                 ]}>
-                  {day}
+                  {DAY_LABELS[index]}
                 </Text>
                 {hasNotifications && (
                   <View style={styles.notificationIndicator}>
@@ -396,6 +416,15 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontWeight: '500',
     letterSpacing: 0.3,
+  },
+  todayButton: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 3,
+  },
+  todayButtonText: {
+    color: '#d97706',
+    fontWeight: '800',
   },
 });
 
