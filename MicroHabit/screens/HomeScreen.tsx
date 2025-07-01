@@ -86,7 +86,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleDelete = async (habitId: string) => {
     try {
       await StorageService.deleteHabit(habitId);
-      await NotificationService.cancelHabitNotifications(habitId);
+      await NotificationService.cancelNotificationsForHabit(habitId);
       setHabits(prevHabits => prevHabits.filter(habit => habit.id !== habitId));
     } catch (error) {
       console.error('Failed to delete habit:', error);
@@ -223,7 +223,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={styles.testButtonsContainer}>
             <TouchableOpacity
               style={styles.lightningButton}
-              onPress={() => NotificationService.testImmediateNotification()}
+              onPress={() => NotificationService.sendImmediateTestNotification()}
             >
               <Text style={styles.lightningButtonIcon}>⚡</Text>
               <Text style={styles.lightningButtonText}>Test Now</Text>
@@ -231,7 +231,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             
             <TouchableOpacity
               style={styles.scheduledTestButton}
-              onPress={() => NotificationService.testNotification()}
+              onPress={() => NotificationService.sendScheduledTestNotification()}
             >
               <Text style={styles.scheduledTestButtonIcon}>🔔</Text>
               <Text style={styles.scheduledTestButtonText}>Test Scheduled</Text>

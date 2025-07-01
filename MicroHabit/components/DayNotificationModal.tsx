@@ -103,8 +103,8 @@ const DayNotificationModal: React.FC<DayNotificationModalProps> = ({
         dayNotifications: filteredNotifications,
       };
 
-      // Schedule notifications
-      await NotificationService.scheduleDayNotifications(updatedHabit);
+      // Schedule notifications for the updated habit
+      await NotificationService.scheduleNotificationsForHabit(updatedHabit);
 
       onSave(updatedHabit);
       onClose();

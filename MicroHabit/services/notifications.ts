@@ -103,6 +103,20 @@ export class NotificationService {
     }
   }
 
+  static async getScheduledNotifications(): Promise<any[]> {
+    try {
+      const notifications = await Notifications.getAllScheduledNotificationsAsync();
+      console.log(`Found ${notifications.length} scheduled notifications`);
+      notifications.forEach(notification => {
+        console.log(`- ${notification.identifier}: ${JSON.stringify(notification.trigger)}`);
+      });
+      return notifications;
+    } catch (error) {
+      console.error('Error getting scheduled notifications:', error);
+      return [];
+    }
+  }
+
   static async scheduleNotificationsForHabit(habit: Habit): Promise<void> {
     try {
       console.log(`Scheduling notifications for habit: ${habit.name}`);
