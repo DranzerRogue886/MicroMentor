@@ -127,14 +127,16 @@ export class NotificationService {
       let scheduledCount = 0;
       
       // Process each day's notifications
-      for (const [day, dayNotification] of Object.entries(habit.dayNotifications)) {
-        if (dayNotification.times && dayNotification.times.length > 0) {
-          console.log(`Processing notifications for day: ${day}`);
-          
-          for (const time of dayNotification.times) {
-            const notificationId = await this.scheduleNotification(habit, day, time);
-            if (notificationId) {
-              scheduledCount++;
+      if (habit.dayNotifications && habit.dayNotifications.length > 0) {
+        for (const dayNotification of habit.dayNotifications) {
+          if (dayNotification.times && dayNotification.times.length > 0) {
+            console.log(`Processing notifications for day: ${dayNotification.day}`);
+            
+            for (const time of dayNotification.times) {
+              const notificationId = await this.scheduleNotification(habit, dayNotification.day, time);
+              if (notificationId) {
+                scheduledCount++;
+              }
             }
           }
         }
@@ -294,7 +296,7 @@ export class NotificationService {
 
   private static getDayOfWeek(day: string): number | null {
     const dayMap: { [key: string]: number } = {
-      'S': 1, // Sunday
+      'S': 1, // Sunday (1-based for iOS calendar triggers)
       'M': 2, // Monday
       'T': 3, // Tuesday
       'W': 4, // Wednesday
@@ -302,6 +304,12 @@ export class NotificationService {
       'F': 6, // Friday
       'A': 7, // Saturday
     };
-    return dayMap[day] || null;
+    
+    const result = dayMap[day];
+    if (result === undefined) {
+      console.error(`Unknown day key: ${day}`);
+      return null;
+    }
+    return result;
   }
 } 
