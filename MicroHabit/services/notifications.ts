@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { Habit, DayNotification } from '../types';
 import { StorageService } from './storage';
 
-// Configure notification behavior for Expo Go SDK 53
+// Configure notification behavior for Expo Go SDK 53 (local notifications only)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -16,25 +16,25 @@ Notifications.setNotificationHandler({
 export class NotificationService {
   static async initialize(): Promise<void> {
     try {
-      console.log('Requesting notification permissions...');
+      console.log('Requesting local notification permissions...');
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       
       if (existingStatus !== 'granted') {
-        console.log('Requesting permissions...');
+        console.log('Requesting local notification permissions...');
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
       
-      console.log(`New permission status: ${finalStatus}`);
+      console.log(`Local notification permission status: ${finalStatus}`);
       
       if (finalStatus !== 'granted') {
-        console.log('Failed to get notification permissions!');
+        console.log('Failed to get local notification permissions!');
         return;
       }
 
       if (Platform.OS === 'android') {
-        console.log('Setting up Android notification channel...');
+        console.log('Setting up Android local notification channel...');
         await Notifications.setNotificationChannelAsync('default', {
           name: 'Micro-remindo',
           importance: Notifications.AndroidImportance.MAX,
@@ -44,18 +44,20 @@ export class NotificationService {
         });
       }
 
-      console.log('Notification permissions granted and configured');
+      console.log('Local notification permissions granted and configured');
     } catch (error) {
-      console.error('Error initializing notifications:', error);
+      console.error('Error initializing local notifications:', error);
     }
   }
 
   static async requestPermissions(): Promise<boolean> {
     try {
+      console.log('Requesting local notification permissions...');
       const { status } = await Notifications.requestPermissionsAsync();
+      console.log(`Local notification permission status: ${status}`);
       return status === 'granted';
     } catch (error) {
-      console.error('Error requesting notification permissions:', error);
+      console.error('Error requesting local notification permissions:', error);
       return false;
     }
   }
