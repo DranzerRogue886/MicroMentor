@@ -22,10 +22,10 @@ export class NotificationService {
     if (Platform.OS === 'android') {
       PushNotification.configure({
         onRegister: function (token: { os: string; token: string }) {
-          console.log('TOKEN:', token);
+          console.log('Android notification token:', token);
         },
         onNotification: function (notification: any) {
-          console.log('NOTIFICATION:', notification);
+          console.log('Android notification received:', notification);
           notification.finish();
         },
         permissions: {
@@ -48,8 +48,14 @@ export class NotificationService {
           importance: 4,
           vibrate: true,
         },
-        (created: boolean) => console.log(`Notification channel created: ${created}`)
+        (created: boolean) => console.log(`Android notification channel created: ${created}`)
       );
+    }
+
+    // Configure iOS push notifications
+    if (Platform.OS === 'ios') {
+      // For iOS, we'll use a simpler approach with alerts for now
+      console.log('iOS notifications configured with alert fallbacks');
     }
   }
 
